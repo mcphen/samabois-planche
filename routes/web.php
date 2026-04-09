@@ -119,7 +119,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Routes API
             Route::get('/liste-suppliers', [SupplierController::class, 'getSuppliers'])->name('supplier.api');
             Route::post('/store', [SupplierController::class, 'store'])->name('supplier.store');
-            Route::delete('/destroy/{supplier}', [SupplierController::class, 'destroy'])->name('supplier.destroy');
+          //  Route::delete('/destroy/{supplier}', [SupplierController::class, 'destroy'])->name('supplier.destroy');
 
         });
 
