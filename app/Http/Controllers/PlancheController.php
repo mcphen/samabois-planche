@@ -185,6 +185,20 @@ class PlancheController extends Controller
 
                 $couleurs = $this->findCouleursByCodes($codes);
 
+                $missingErrors = [];
+
+                foreach ($groupes as $index => $groupe) {
+                    $code = $groupe['code_couleur'];
+
+                    if (! $couleurs->has($code)) {
+                        $missingErrors["groupes.{$index}.code_couleur"] = "Le code couleur {$code} n'existe pas.";
+                    }
+                }
+
+                if (! empty($missingErrors)) {
+                    throw ValidationException::withMessages($missingErrors);
+                }
+
                 // Check for duplicate (color + category) already in this contract
                 $existants = [];
                 foreach ($groupes as $groupe) {
@@ -208,7 +222,7 @@ class PlancheController extends Controller
                 foreach ($groupes as $groupe) {
                     $code     = $groupe['code_couleur'];
                     $cat      = $groupe['categorie'];
-                    $couleur  = $couleurs[$code] ?? $this->createCouleur($code);
+                    $couleur  = $couleurs[$code];
 
                     $couleurs[$code] = $couleur;
 
@@ -277,7 +291,7 @@ class PlancheController extends Controller
                 $categorie      = $request->input('categorie');
                 $epaisseur      = (float) $request->input('epaisseur');
                 $quantitePrevue = (int) $request->input('quantite_prevue');
-                $couleur        = $this->findOrCreateCouleur($codeCouleur);
+                $couleur        = $this->findExistingCouleurOrFail($codeCouleur);
 
                 $targetPlanche = $this->findPlancheForContratCouleurCategorie($planche->contrat_id, $couleur->id, $categorie)
                     ?? Planche::query()->create(['contrat_id' => $planche->contrat_id]);
@@ -345,7 +359,7 @@ class PlancheController extends Controller
                 $categorie       = $request->input('categorie');
                 $epaisseur       = (float) $request->input('epaisseur');
                 $quantitePrevue  = (int) $request->input('quantite_prevue');
-                $couleur         = $this->findOrCreateCouleur($codeCouleur);
+                $couleur         = $this->findExistingCouleurOrFail($codeCouleur);
 
                 $targetPlanche = $this->findPlancheForContratCouleurCategorie($planche->contrat_id, $couleur->id, $categorie)
                     ?? Planche::query()->create(['contrat_id' => $planche->contrat_id]);
@@ -478,6 +492,20 @@ class PlancheController extends Controller
         $couleur = $this->findCouleursByCodes(collect([$codeCouleur]))->get($codeCouleur);
 
         return $couleur ?? $this->createCouleur($codeCouleur);
+    }
+
+    private function findExistingCouleurOrFail(string $codeCouleur): PlancheCouleur
+    {
+        $codeCouleur = $this->normalizeCodeCouleur($codeCouleur);
+        $couleur = $this->findCouleursByCodes(collect([$codeCouleur]))->get($codeCouleur);
+
+        if ($couleur) {
+            return $couleur;
+        }
+
+        throw ValidationException::withMessages([
+            'code_couleur' => "Le code couleur {$codeCouleur} n'existe pas.",
+        ]);
     }
 
     private function createCouleur(string $codeCouleur): PlancheCouleur
