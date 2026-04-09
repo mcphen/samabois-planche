@@ -1,8 +1,8 @@
 <template>
-    <Head :title="`BL ${bonLivraison.numero_bl} | ${appName}`" />
+    <Head :title="`Facture ${bonLivraison.numero_bl} | ${appName}`" />
 
     <AuthenticatedLayout>
-        <BreadcrumbsAndActions :title="`Bon de livraison ${bonLivraison.numero_bl}`" :breadcrumbs="breadcrumbs">
+        <BreadcrumbsAndActions :title="`Facture ${bonLivraison.numero_bl}`" :breadcrumbs="breadcrumbs">
             <template #action>
                 <Link class="btn btn-primary mr-2" href="/admin/planche-bons-livraison">
                     <i class="fa fa-arrow-left"></i> Retour a la liste
@@ -27,7 +27,7 @@
 
         <div class="row clearfix row-deck">
             <div class="col-lg-3 col-md-6 col-sm-12">
-                <div class="card primary-bg"><div class="body"><div class="p-15 text-light"><h3>{{ bonLivraison.numero_bl }}</h3><span>Numero BL</span></div></div></div>
+                <div class="card primary-bg"><div class="body"><div class="p-15 text-light"><h3>{{ bonLivraison.numero_bl }}</h3><span>Numero facture</span></div></div></div>
             </div>
             <div class="col-lg-3 col-md-6 col-sm-12">
                 <div class="card secondary-bg"><div class="body"><div class="p-15 text-light"><h3>{{ bonLivraison.client_name || '-' }}</h3><span>Client</span></div></div></div>
@@ -61,7 +61,7 @@
                                 <small v-if="errors.client_id" class="text-danger">{{ errors.client_id[0] }}</small>
                             </div>
                             <div class="form-group">
-                                <label>Numero BL *</label>
+                                <label>Numero facture *</label>
                                 <input v-model="form.numero_bl" type="text" class="form-control" />
                                 <small v-if="errors.numero_bl" class="text-danger">{{ errors.numero_bl[0] }}</small>
                             </div>
@@ -78,7 +78,7 @@
                                 </select>
                                 <small v-if="errors.statut" class="text-danger">{{ errors.statut[0] }}</small>
                                 <small class="text-muted d-block mt-1">
-                                    La validation du BL cree automatiquement une facture client.
+                                    La validation de cette facture cree automatiquement une facture client.
                                 </small>
                             </div>
                         </template>
@@ -108,7 +108,7 @@
 
             <div class="col-lg-8 col-md-12">
                 <div class="card">
-                    <div class="header"><h2>Lignes du bon</h2></div>
+                    <div class="header"><h2>Lignes de la facture</h2></div>
                     <div class="body table-responsive">
                         <table class="table table-bordered mb-0">
                             <thead>
@@ -311,7 +311,7 @@
                                     <div class="font-weight-bold text-truncate">{{ selectedClientName || '-' }}</div>
                                 </div>
                                 <div class="col-6 col-md-2 mb-2 mb-md-0">
-                                    <div class="small text-muted mb-1">N° BL</div>
+                                    <div class="small text-muted mb-1">N° facture</div>
                                     <div class="font-weight-bold text-truncate">{{ form.numero_bl || '-' }}</div>
                                 </div>
                                 <div class="col-6 col-md-2 mb-2 mb-md-0">
@@ -377,7 +377,7 @@ const props = defineProps({
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
     { label: 'Tableau de bord', link: '/dashboard', icon: 'fa fa-dashboard' },
-    { label: 'Bons de livraison planche', link: '/admin/planche-bons-livraison', icon: 'fa fa-truck' },
+    { label: 'Factures planche', link: '/admin/planche-bons-livraison', icon: 'fa fa-truck' },
     { label: props.bonLivraison.numero_bl },
 ];
 
@@ -507,7 +507,7 @@ function submitForm() {
 }
 
 function deleteBon() {
-    if (!confirm('Etes-vous sur de vouloir supprimer ce bon de livraison ?')) {
+    if (!confirm('Etes-vous sur de vouloir supprimer cette facture ?')) {
         return;
     }
 

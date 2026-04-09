@@ -7,7 +7,7 @@
             :breadcrumbs="breadcrumbs"
         >
             <template #action>
-                <Link class="btn btn-primary" href="/admin/planches">
+                <Link class="btn btn-primary" :href="`/admin/contrats/${planche.contrat?.id}?planche=${planche.id}`">
                     <i class="fa fa-arrow-left"></i> Retour a la liste
                 </Link>
             </template>
@@ -63,10 +63,10 @@
         </div>
 
         <div class="row clearfix">
-            <div class="col-lg-5 col-md-12">
+            <div class="col-lg-4 col-md-12">
                 <div class="card">
                     <div class="header">
-                        <h2>Informations generales</h2>
+                        <h2>Planche courante</h2>
                     </div>
                     <div class="body">
                         <div v-if="planche.couleur?.image_url" class="mb-3 text-center">
@@ -77,6 +77,33 @@
                                 style="max-height:180px;object-fit:cover;"
                             />
                         </div>
+
+                        <div class="mb-3">
+                            <strong>Code couleur :</strong>
+                            <span class="badge badge-info ml-2">{{ planche.couleur?.code || '-' }}</span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>Categorie :</strong>
+                            <span class="badge ml-2" :class="categorieBadgeClass(planche.categorie)">
+                                {{ categorieLabel(planche.categorie) }}
+                            </span>
+                        </div>
+                        <div class="mb-3">
+                            <strong>ID planche :</strong>
+                            #{{ planche.id }}
+                        </div>
+                        <div class="mb-0">
+                            <strong>Lignes de cette planche :</strong>
+                            {{ planche.details.length }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="header">
+                        <h2>Informations du contrat</h2>
+                    </div>
+                    <div class="body">
                         <div class="mb-3">
                             <strong>Fournisseur :</strong>
                             {{ planche.contrat?.supplier?.name || '-' }}
@@ -86,9 +113,29 @@
                             {{ planche.contrat?.numero || '-' }}
                         </div>
                         <div class="mb-3">
-                            <strong>Code couleur :</strong>
-                            {{ planche.couleur?.code || '-' }}
+                            <strong>Planches dans ce contrat :</strong>
+                            {{ contrat_planches.length }}
                         </div>
+                        <div class="mb-3">
+                            <strong>Autres planches :</strong>
+                            {{ autres_planches.length }}
+                        </div>
+                        <div class="mb-3">
+                            <strong>Total lignes du contrat :</strong>
+                            {{ contractRows.length }}
+                        </div>
+                        <div class="mb-0">
+                            <strong>Total feuilles du contrat :</strong>
+                            {{ contractTotalQuantite }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" v-if="planche.contrat?.supplier?.phone || planche.contrat?.supplier?.email || planche.contrat?.supplier?.address">
+                    <div class="header">
+                        <h2>Contact fournisseur</h2>
+                    </div>
+                    <div class="body">
                         <div class="mb-3" v-if="planche.contrat?.supplier?.phone">
                             <strong>Telephone :</strong>
                             {{ planche.contrat.supplier.phone }}
@@ -105,15 +152,71 @@
                 </div>
             </div>
 
-            <div class="col-lg-7 col-md-12">
+            <div class="col-lg-8 col-md-12">
                 <div class="card">
                     <div class="header">
-                        <h2>Details des epaisseurs</h2>
+                        <h2>Toutes les planches du contrat</h2>
+                    </div>
+                    <div class="body table-responsive">
+                        <table class="table table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Planche</th>
+                                    <th>Code couleur</th>
+                                    <th>Categorie</th>
+                                    <th>Nb details</th>
+                                    <th>Total feuilles</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="!sortedContractPlanches.length">
+                                    <td colspan="6" class="text-center py-4">Aucune planche pour ce contrat.</td>
+                                </tr>
+                                <tr
+                                    v-for="item in sortedContractPlanches"
+                                    :key="item.id"
+                                    :class="{ 'table-primary': item.id === planche.id }"
+                                >
+                                    <td>
+                                        <span v-if="item.id === planche.id" class="badge badge-primary mr-2">Courante</span>
+                                        #{{ item.id }}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-info">{{ item.couleur?.code || item.code_couleur || '-' }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" :class="categorieBadgeClass(item.categorie)">
+                                            {{ categorieLabel(item.categorie) }}
+                                        </span>
+                                    </td>
+                                    <td>{{ item.details?.length || 0 }}</td>
+                                    <td class="font-weight-bold">{{ plancheTotalQuantite(item) }}</td>
+                                    <td>
+                                        <span v-if="item.id === planche.id" class="text-muted">En cours</span>
+                                        <Link
+                                            v-else
+                                            :href="`/admin/planches/${item.id}`"
+                                            class="btn btn-outline-info btn-sm"
+                                        >
+                                            Voir
+                                        </Link>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="header">
+                        <h2>Planche courante: planche_details</h2>
                     </div>
                     <div class="body table-responsive">
                         <table class="table table-bordered mb-0">
                             <thead>
                                 <tr>
+                                    <th>ID detail</th>
                                     <th>Categorie</th>
                                     <th>Epaisseur (mm)</th>
                                     <th>Nb feuilles</th>
@@ -121,9 +224,10 @@
                             </thead>
                             <tbody>
                                 <tr v-if="!planche.details.length">
-                                    <td colspan="3" class="text-center">Aucun detail enregistre.</td>
+                                    <td colspan="4" class="text-center">Aucun detail enregistre.</td>
                                 </tr>
                                 <tr v-for="detail in sortedDetails" :key="detail.id">
+                                    <td>#{{ detail.id }}</td>
                                     <td>
                                         <span class="badge" :class="categorieBadgeClass(detail.categorie)">
                                             {{ categorieLabel(detail.categorie) }}
@@ -135,30 +239,12 @@
                             </tbody>
                             <tfoot v-if="planche.details.length">
                                 <tr>
-                                    <th colspan="2">Total feuilles</th>
+                                    <th colspan="3">Total feuilles</th>
                                     <th>{{ totalQuantite }}</th>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card" v-if="autres_planches.length">
-            <div class="header">
-                <h2>Autres planches du meme contrat</h2>
-            </div>
-            <div class="body">
-                <div class="d-flex flex-wrap">
-                    <Link
-                        v-for="autre in autres_planches"
-                        :key="autre.id"
-                        :href="`/admin/planches/${autre.id}`"
-                        class="btn btn-outline-secondary m-1"
-                    >
-                        {{ autre.couleur?.code || '-' }} - {{ categorieLabel(autre.categorie) }}
-                    </Link>
                 </div>
             </div>
         </div>
@@ -252,7 +338,11 @@
                             <tr v-if="!contractRows.length">
                                 <td colspan="6" class="text-center py-4">Aucune ligne disponible.</td>
                             </tr>
-                            <tr v-for="row in contractRows" :key="row.detail_id">
+                            <tr
+                                v-for="row in contractRows"
+                                :key="row.detail_id"
+                                :class="{ 'table-primary': row.planche_id === planche.id }"
+                            >
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <img
@@ -273,8 +363,11 @@
                                 <td>{{ formatDecimal(row.epaisseur) }}</td>
                                 <td>{{ row.quantite_prevue }}</td>
                                 <td>
-                                    <Link :href="`/admin/planches/${row.planche_id}`" class="badge badge-info">
-                                        {{ row.planche_id === planche.id ? 'Courante' : 'Voir planche' }}
+                                    <span v-if="row.planche_id === planche.id" class="badge badge-primary">
+                                        Courante
+                                    </span>
+                                    <Link v-else :href="`/admin/planches/${row.planche_id}`" class="badge badge-info">
+                                        Voir planche
                                     </Link>
                                 </td>
                                 <td>
@@ -386,7 +479,7 @@ const props = defineProps({
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
     { label: 'Tableau de bord', link: '/dashboard', icon: 'fa fa-dashboard' },
-    { label: 'Gestion des planches', link: '/admin/planches', icon: 'fa fa-database' },
+    { label: 'Gestion des contrats', link: '/admin/contrats', icon: 'fa fa-database' },
     { label: `Planche ${props.planche.couleur?.code || ''}` },
 ];
 
@@ -425,6 +518,15 @@ const totalQuantite = computed(() => {
     return props.planche.details.reduce((total, detail) => total + Number(detail.quantite_prevue || 0), 0);
 });
 
+const sortedContractPlanches = computed(() => {
+    return [...props.contrat_planches].sort((a, b) => {
+        const keyA = (a.code_couleur || a.couleur?.code || '') + '|' + (a.categorie || '');
+        const keyB = (b.code_couleur || b.couleur?.code || '') + '|' + (b.categorie || '');
+
+        return keyA.localeCompare(keyB);
+    });
+});
+
 const contractRows = computed(() => {
     return props.contrat_planches
         .flatMap((item) => item.details.map((detail) => ({
@@ -448,6 +550,10 @@ const contractRows = computed(() => {
         });
 });
 
+const contractTotalQuantite = computed(() => {
+    return contractRows.value.reduce((total, row) => total + Number(row.quantite_prevue || 0), 0);
+});
+
 function categorieLabel(cat) {
     return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-';
 }
@@ -466,6 +572,10 @@ function formatDecimal(value) {
     }
 
     return Number(value).toFixed(2);
+}
+
+function plancheTotalQuantite(item) {
+    return (item.details || []).reduce((total, detail) => total + Number(detail.quantite_prevue || 0), 0);
 }
 
 function resetErrors() {

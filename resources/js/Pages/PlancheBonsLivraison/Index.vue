@@ -1,11 +1,11 @@
 <template>
-    <Head :title="`Bons de livraison planche | ${appName}`" />
+    <Head :title="`Factures planche | ${appName}`" />
 
     <AuthenticatedLayout>
-        <BreadcrumbsAndActions :title="'Bons de livraison planche'" :breadcrumbs="breadcrumbs">
+        <BreadcrumbsAndActions :title="'Factures planche'" :breadcrumbs="breadcrumbs">
             <template #action>
                 <Link class="btn btn-primary" href="/admin/planche-bons-livraison/create">
-                    <i class="fa fa-plus"></i> Nouveau BL
+                    <i class="fa fa-plus"></i> Nouvelle facture
                 </Link>
             </template>
         </BreadcrumbsAndActions>
@@ -14,8 +14,8 @@
             <div class="body">
                 <div class="row mb-4">
                     <div class="col-md-3">
-                        <label class="small font-weight-bold">Numero BL</label>
-                        <input v-model="filters.numero_bl" type="text" class="form-control" placeholder="Rechercher un BL" />
+                        <label class="small font-weight-bold">Numero facture</label>
+                        <input v-model="filters.numero_bl" type="text" class="form-control" placeholder="Rechercher une facture" />
                     </div>
 
                     <div class="col-md-3">
@@ -46,7 +46,7 @@
                     <table class="table table-striped mb-0">
                         <thead class="thead-dark">
                             <tr>
-                                <th>Numero BL</th>
+                                <th>Numero facture</th>
                                 <th>Client</th>
                                 <th>Date livraison</th>
                                 <th>Statut</th>
@@ -63,7 +63,7 @@
                                 <td colspan="10" class="text-center py-4">Chargement...</td>
                             </tr>
                             <tr v-else-if="!bons.data.length">
-                                <td colspan="10" class="text-center py-4">Aucun bon de livraison enregistre.</td>
+                                <td colspan="10" class="text-center py-4">Aucune facture enregistree.</td>
                             </tr>
                             <tr v-for="bon in bons.data" :key="bon.id">
                                 <td>{{ bon.numero_bl }}</td>
@@ -120,7 +120,7 @@ import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
     { label: 'Tableau de bord', link: '/dashboard', icon: 'fa fa-dashboard' },
-    { label: 'Bons de livraison planche' },
+    { label: 'Factures planche' },
 ];
 
 const loading = ref(false);
@@ -159,7 +159,7 @@ function resetFilters() {
 }
 
 function deleteBon(bonId) {
-    if (!confirm('Etes-vous sur de vouloir supprimer ce bon de livraison ?')) {
+    if (!confirm('Etes-vous sur de vouloir supprimer cette facture ?')) {
         return;
     }
 

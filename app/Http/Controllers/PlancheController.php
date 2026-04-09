@@ -29,12 +29,7 @@ class PlancheController extends Controller
 
     public function index()
     {
-        return Inertia::render('Planches/Index', [
-            'suppliers' => Supplier::query()
-                ->select('id', 'name')
-                ->orderBy('name')
-                ->get(),
-        ]);
+        return redirect()->route('contrats.index');
     }
 
     public function create()
@@ -123,49 +118,52 @@ class PlancheController extends Controller
 
     public function getPlanches(Request $request)
     {
-        $query = Planche::query()
+        $query = Contrat::query()
             ->with([
-                'contrat:id,supplier_id,numero',
-                'contrat.supplier:id,name',
-                'details:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
-                'details.couleur:id,code,image_path',
+                'supplier:id,name',
+                'planches' => function ($plancheQuery) {
+                    $plancheQuery
+                        ->select('id', 'contrat_id', 'created_at')
+                        ->with([
+                            'details:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
+                            'details.couleur:id,code,image_path',
+                        ])
+                        ->withSum('details as total_quantite_prevue', 'quantite_prevue')
+                        ->latest();
+                },
             ])
-            ->withSum('details as total_quantite_prevue', 'quantite_prevue')
             ->latest();
 
         if ($request->filled('supplier_id')) {
-            $query->whereHas('contrat', function ($contratQuery) use ($request) {
-                $contratQuery->where('supplier_id', $request->integer('supplier_id'));
-            });
+            $query->where('supplier_id', $request->integer('supplier_id'));
         }
 
         if ($request->filled('numero_contrat')) {
             $numeroContrat = $request->string('numero_contrat')->toString();
 
-            $query->whereHas('contrat', function ($contratQuery) use ($numeroContrat) {
-                $contratQuery->where('numero', 'like', '%' . $numeroContrat . '%');
-            });
+            $query->where('numero', 'like', '%' . $numeroContrat . '%');
         }
 
         if ($request->filled('code_couleur')) {
             $codeCouleur = $request->string('code_couleur')->toString();
-            $query->whereHas('details.couleur', function ($couleurQuery) use ($codeCouleur) {
+
+            $query->whereHas('planches.details.couleur', function ($couleurQuery) use ($codeCouleur) {
                 $couleurQuery->where('code', 'like', '%' . trim($codeCouleur) . '%');
             });
         }
 
-        $planches = $query->paginate(20);
-        $planches->setCollection(
-            $planches->getCollection()->map(fn (Planche $item) => $this->decoratePlanche($item))
+        $contrats = $query->paginate(20);
+        $contrats->setCollection(
+            $contrats->getCollection()->map(fn (Contrat $item) => $this->decorateContrat($item))
         );
 
-        return response()->json($planches);
+        return response()->json($contrats);
     }
 
     public function store(StorePlancheRequest $request)
     {
         try {
-            $planches = DB::transaction(function () use ($request) {
+            $result = DB::transaction(function () use ($request) {
                 $contrat = Contrat::query()->firstOrCreate([
                     'supplier_id' => $request->integer('supplier_id'),
                     'numero'      => trim($request->string('numero_contrat')->toString()),
@@ -241,12 +239,21 @@ class PlancheController extends Controller
                     $planches->push($planche);
                 }
 
-                return $planches;
+                return [
+                    'contrat' => $contrat,
+                    'planches' => $planches,
+                ];
             });
 
             return response()->json([
                 'message' => 'Planches enregistrées avec succès.',
-                'data'    => $planches,
+                'data'    => [
+                    'planches' => $result['planches'],
+                    'redirect_to' => route('contrats.show', [
+                        'contrat' => $result['contrat']->id,
+                        'planche' => $result['planches']->first()?->id,
+                    ]),
+                ],
             ], 201);
         } catch (ValidationException $exception) {
             throw $exception;
@@ -483,7 +490,7 @@ class PlancheController extends Controller
 
         return $nextPlanche
             ? route('planches.show', $nextPlanche)
-            : route('planches.index');
+            : route('contrats.show', $contratId);
     }
 
     private function findOrCreateCouleur(string $codeCouleur): PlancheCouleur
@@ -642,6 +649,21 @@ class PlancheController extends Controller
         $planche->setAttribute('categorie', $categorie);
 
         return $planche;
+    }
+
+    private function decorateContrat(Contrat $contrat): Contrat
+    {
+        $planches = $contrat->planches
+            ->map(fn (Planche $item) => $this->decoratePlanche($item))
+            ->sortBy(fn (Planche $item) => ($item->code_couleur ?? '') . '|' . ($item->categorie ?? ''))
+            ->values();
+
+        $contrat->setRelation('planches', $planches);
+        $contrat->setAttribute('total_planches', $planches->count());
+        $contrat->setAttribute('total_details', $planches->sum(fn (Planche $item) => $item->details->count()));
+        $contrat->setAttribute('total_quantite_prevue', $planches->sum(fn (Planche $item) => (int) ($item->total_quantite_prevue ?? 0)));
+
+        return $contrat;
     }
 
     private function categorieLabel(string $categorie): string

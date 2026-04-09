@@ -132,12 +132,12 @@ const menuItems = ref([
     {
         name: 'Planches',
         icon: 'fa fa-th-large',
-        active_btn: 'admin/planches',
+        active_btn: 'admin/contrats',
         visibility: false,
         subMenu: [
-            { name: 'Liste des planches', url: '/admin/planches' },
-            { name: 'Nouvelle planche', url: '/admin/planches/create' },
-            { name: 'Bons de livraison', url: '/admin/planche-bons-livraison' },
+            { name: 'Liste des contrats', url: '/admin/contrats' },
+            { name: 'Ajouter des planches', url: '/admin/planches/create' },
+            { name: 'Factures', url: '/admin/planche-bons-livraison' },
         ],
     },
     

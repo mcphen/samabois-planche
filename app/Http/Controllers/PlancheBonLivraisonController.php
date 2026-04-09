@@ -115,7 +115,7 @@ class PlancheBonLivraisonController extends Controller
         });
 
         return response()->json([
-            'message' => 'Bon de livraison enregistre avec succes.',
+            'message' => 'Facture enregistree avec succes.',
             'data' => [
                 'id' => $bonLivraison->id,
                 'redirect_to' => route('planche-bons-livraison.show', $bonLivraison),
@@ -151,7 +151,7 @@ class PlancheBonLivraisonController extends Controller
         });
 
         return response()->json([
-            'message' => 'Bon de livraison mis a jour avec succes.',
+            'message' => 'Facture mise a jour avec succes.',
             'data' => [
                 'id' => $plancheBonLivraison->id,
                 'redirect_to' => route('planche-bons-livraison.show', $plancheBonLivraison),
@@ -168,7 +168,7 @@ class PlancheBonLivraisonController extends Controller
         });
 
         return response()->json([
-            'message' => 'Bon de livraison supprime avec succes.',
+            'message' => 'Facture supprimee avec succes.',
             'data' => [
                 'redirect_to' => route('planche-bons-livraison.index'),
             ],
@@ -325,7 +325,7 @@ class PlancheBonLivraisonController extends Controller
     {
         if ($plancheBonLivraison->statut !== 'brouillon') {
             throw ValidationException::withMessages([
-                'statut' => 'Ce bon de livraison est valide et ne peut plus etre modifie ou supprime.',
+                'statut' => 'Cette facture est valide et ne peut plus etre modifiee ou supprimee.',
             ]);
         }
     }

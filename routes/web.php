@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ContratController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\InvoiceController;
@@ -156,6 +157,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/suppliers', [SupplierConfigurationController::class, 'store'])->name('configuration.suppliers.store');
             Route::put('/suppliers/{supplier}', [SupplierConfigurationController::class, 'update'])->name('configuration.suppliers.update');
             Route::delete('/suppliers/{supplier}', [SupplierConfigurationController::class, 'destroy'])->name('configuration.suppliers.destroy');
+        });
+
+        Route::prefix('/contrats')->group(function () {
+            Route::get('/', [ContratController::class, 'index'])->name('contrats.index');
+            Route::get('/listes', [ContratController::class, 'getContrats'])->name('contrats.list');
+            Route::get('/{contrat}', [ContratController::class, 'show'])->name('contrats.show');
         });
 
         Route::prefix('/planches')->group(function () {

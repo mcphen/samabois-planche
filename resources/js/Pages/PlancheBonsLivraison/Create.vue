@@ -1,8 +1,8 @@
 <template>
-    <Head :title="`Nouveau BL planche | ${appName}`" />
+    <Head :title="`Nouvelle facture planche | ${appName}`" />
 
     <AuthenticatedLayout>
-        <BreadcrumbsAndActions :title="'Nouveau bon de livraison planche'" :breadcrumbs="breadcrumbs">
+        <BreadcrumbsAndActions :title="'Nouvelle facture planche'" :breadcrumbs="breadcrumbs">
             <template #action>
                 <Link class="btn btn-primary" href="/admin/planche-bons-livraison">
                     <i class="fa fa-arrow-left"></i> Retour a la liste
@@ -30,7 +30,7 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label>Numero BL *</label>
+                            <label>Numero facture *</label>
                             <input v-model="form.numero_bl" type="text" class="form-control" />
                             <small v-if="errors.numero_bl" class="text-danger">{{ errors.numero_bl[0] }}</small>
                         </div>
@@ -49,7 +49,7 @@
                             </select>
                             <small v-if="errors.statut" class="text-danger">{{ errors.statut[0] }}</small>
                             <small class="text-muted d-block mt-1">
-                                Si vous validez ce BL, une facture client sera creee automatiquement.
+                                En validant cette facture, une facture client sera creee automatiquement.
                             </small>
                         </div>
                     </div>
@@ -172,7 +172,7 @@
 
         <div class="card">
             <div class="header">
-                <h2>Lignes du bon</h2>
+                <h2>Lignes de la facture</h2>
             </div>
             <div class="body">
                 <div class="table-responsive">
@@ -287,8 +287,8 @@ const props = defineProps({
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
     { label: 'Tableau de bord', link: '/dashboard', icon: 'fa fa-dashboard' },
-    { label: 'Bons de livraison planche', link: '/admin/planche-bons-livraison', icon: 'fa fa-truck' },
-    { label: 'Nouveau BL' },
+    { label: 'Factures planche', link: '/admin/planche-bons-livraison', icon: 'fa fa-truck' },
+    { label: 'Nouvelle facture' },
 ];
 
 const detailsLoading = ref(false);

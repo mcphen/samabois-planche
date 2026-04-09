@@ -7,7 +7,7 @@
             :breadcrumbs="breadcrumbs"
         >
             <template #action>
-                <Link class="btn btn-primary" href="/admin/planches">
+                <Link class="btn btn-primary" href="/admin/contrats">
                     <i class="fa fa-arrow-left"></i> Retour a la liste
                 </Link>
             </template>
@@ -175,7 +175,7 @@
                         <i class="fa fa-save mr-1"></i>
                         {{ submitting ? 'Enregistrement...' : 'Enregistrer' }}
                     </button>
-                    <Link href="/admin/planches" class="btn btn-secondary ml-2">
+                    <Link href="/admin/contrats" class="btn btn-secondary ml-2">
                         Annuler
                     </Link>
                 </div>
@@ -201,7 +201,7 @@ const props = defineProps({
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
     { label: 'Tableau de bord', link: '/dashboard', icon: 'fa fa-dashboard' },
-    { label: 'Gestion des planches', link: '/admin/planches', icon: 'fa fa-database' },
+    { label: 'Gestion des contrats', link: '/admin/contrats', icon: 'fa fa-database' },
     { label: 'Ajouter des planches' },
 ];
 
@@ -392,7 +392,10 @@ function submitForm() {
     const { payload, rowMap } = buildPayload();
 
     axios.post('/admin/planches/store', payload)
-        .then(() => { Inertia.visit('/admin/planches'); })
+        .then((response) => {
+            const redirectTo = response?.data?.data?.redirect_to;
+            Inertia.visit(redirectTo || '/admin/contrats');
+        })
         .catch((error) => {
             if (error.response?.status === 422) {
                 errors.value = mapServerErrors(error.response.data.errors || {}, rowMap);
