@@ -15,9 +15,11 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Throwable;
 
 class PlancheController extends Controller
 {
@@ -228,10 +230,30 @@ class PlancheController extends Controller
                 'message' => 'Planches enregistrées avec succès.',
                 'data'    => $planches,
             ], 201);
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (QueryException $exception) {
-            return response()->json([
-                'message' => 'Impossible d\'enregistrer la planche.',
-            ], 500);
+            return $this->databaseErrorResponse(
+                'Impossible d\'enregistrer la planche.',
+                $exception,
+                'planche.store',
+                [
+                    'supplier_id' => $request->input('supplier_id'),
+                    'numero_contrat' => $request->input('numero_contrat'),
+                    'groupes_count' => count($request->input('groupes', [])),
+                ]
+            );
+        } catch (Throwable $exception) {
+            return $this->unexpectedErrorResponse(
+                'Impossible d\'enregistrer la planche.',
+                $exception,
+                'planche.store',
+                [
+                    'supplier_id' => $request->input('supplier_id'),
+                    'numero_contrat' => $request->input('numero_contrat'),
+                    'groupes_count' => count($request->input('groupes', [])),
+                ]
+            );
         }
     }
 
@@ -284,10 +306,28 @@ class PlancheController extends Controller
                 'message' => 'Ligne ajoutée avec succès.',
                 'data'    => $result,
             ], 201);
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (QueryException $exception) {
-            return response()->json([
-                'message' => 'Impossible d\'ajouter cette ligne.',
-            ], 500);
+            return $this->databaseErrorResponse(
+                'Impossible d\'ajouter cette ligne.',
+                $exception,
+                'planche.line.store',
+                [
+                    'planche_id' => $planche->id,
+                    'contrat_id' => $planche->contrat_id,
+                ]
+            );
+        } catch (Throwable $exception) {
+            return $this->unexpectedErrorResponse(
+                'Impossible d\'ajouter cette ligne.',
+                $exception,
+                'planche.line.store',
+                [
+                    'planche_id' => $planche->id,
+                    'contrat_id' => $planche->contrat_id,
+                ]
+            );
         }
     }
 
@@ -344,10 +384,30 @@ class PlancheController extends Controller
                 'message' => 'Ligne modifiée avec succès.',
                 'data'    => $result,
             ]);
+        } catch (ValidationException $exception) {
+            throw $exception;
         } catch (QueryException $exception) {
-            return response()->json([
-                'message' => 'Impossible de modifier cette ligne.',
-            ], 500);
+            return $this->databaseErrorResponse(
+                'Impossible de modifier cette ligne.',
+                $exception,
+                'planche.line.update',
+                [
+                    'planche_id' => $planche->id,
+                    'detail_id' => $detail->id,
+                    'contrat_id' => $planche->contrat_id,
+                ]
+            );
+        } catch (Throwable $exception) {
+            return $this->unexpectedErrorResponse(
+                'Impossible de modifier cette ligne.',
+                $exception,
+                'planche.line.update',
+                [
+                    'planche_id' => $planche->id,
+                    'detail_id' => $detail->id,
+                    'contrat_id' => $planche->contrat_id,
+                ]
+            );
         }
     }
 
@@ -467,5 +527,75 @@ class PlancheController extends Controller
             'brillant'      => 'Brillant',
             default         => $categorie,
         };
+    }
+
+    private function databaseErrorResponse(
+        string $message,
+        QueryException $exception,
+        string $operation,
+        array $context = []
+    ) {
+        $this->reportPlancheException($operation, $exception, $context);
+
+        return response()->json([
+            'message' => $message,
+            'detail' => $this->describeDatabaseError($exception),
+            'error_code' => $exception->errorInfo[0] ?? (string) $exception->getCode(),
+        ], 500);
+    }
+
+    private function unexpectedErrorResponse(
+        string $message,
+        Throwable $exception,
+        string $operation,
+        array $context = []
+    ) {
+        $this->reportPlancheException($operation, $exception, $context);
+
+        return response()->json([
+            'message' => $message,
+            'detail' => app()->hasDebugModeEnabled()
+                ? $exception->getMessage()
+                : 'Une erreur inattendue est survenue. Consultez les logs du serveur.',
+        ], 500);
+    }
+
+    private function reportPlancheException(string $operation, Throwable $exception, array $context = []): void
+    {
+        Log::error("Planche operation failed: {$operation}", array_merge($context, [
+            'exception_class' => get_class($exception),
+            'exception_message' => $exception->getMessage(),
+            'trace' => app()->hasDebugModeEnabled() ? $exception->getTraceAsString() : null,
+        ], $exception instanceof QueryException ? [
+            'sql' => $exception->getSql(),
+            'bindings' => $exception->getBindings(),
+            'error_info' => $exception->errorInfo,
+        ] : []));
+
+        report($exception);
+    }
+
+    private function describeDatabaseError(QueryException $exception): string
+    {
+        $sqlState = $exception->errorInfo[0] ?? (string) $exception->getCode();
+        $driverMessage = $exception->errorInfo[2] ?? $exception->getMessage();
+
+        if ($sqlState === '42S22' || str_contains($driverMessage, 'Unknown column')) {
+            return 'Le schema de la base ne semble pas a jour. Verifiez les migrations des tables planches, planche_details et planche_couleurs.';
+        }
+
+        if ($sqlState === '42S02' || str_contains($driverMessage, 'Base table or view not found')) {
+            return 'Une table requise est absente en base. Verifiez que toutes les migrations des planches ont bien ete executees.';
+        }
+
+        if ($sqlState === '23000' || str_contains($driverMessage, 'Integrity constraint violation')) {
+            return 'Une contrainte de la base a bloque l enregistrement. Verifiez les doublons, les relations et les index des tables planches.';
+        }
+
+        if (app()->hasDebugModeEnabled()) {
+            return $driverMessage;
+        }
+
+        return 'Le detail technique a ete envoye aux logs du serveur.';
     }
 }

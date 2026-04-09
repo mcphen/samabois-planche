@@ -400,7 +400,9 @@ function submitForm() {
                 return;
             }
 
-            formError.value = 'Une erreur est survenue pendant l enregistrement.';
+            const serverMessage = error.response?.data?.message || 'Une erreur est survenue pendant l enregistrement.';
+            const serverDetail = error.response?.data?.detail;
+            formError.value = serverDetail ? `${serverMessage} ${serverDetail}` : serverMessage;
         })
         .finally(() => { submitting.value = false; });
 }
