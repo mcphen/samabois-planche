@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -23,6 +24,8 @@ use Throwable;
 
 class PlancheController extends Controller
 {
+    private ?bool $legacyPlancheCouleurCodeColumnExists = null;
+
     public function index()
     {
         return Inertia::render('Planches/Index', [
@@ -65,9 +68,7 @@ class PlancheController extends Controller
     {
         $code = $this->normalizeCodeCouleur($request->string('code')->toString());
 
-        $couleur = PlancheCouleur::query()->firstOrCreate([
-            'code' => $code,
-        ]);
+        $couleur = $this->findOrCreateCouleur($code);
 
         $this->syncCouleurImage($couleur, $request->file('image'));
 
@@ -177,10 +178,12 @@ class PlancheController extends Controller
                     ]);
 
                 // Resolve existing couleur records
-                $couleurs = PlancheCouleur::query()
-                    ->whereIn('code', $groupes->pluck('code_couleur')->unique())
-                    ->get()
-                    ->keyBy('code');
+                $codes = $groupes->pluck('code_couleur')
+                    ->map(fn ($code) => $this->normalizeCodeCouleur((string) $code))
+                    ->unique()
+                    ->values();
+
+                $couleurs = $this->findCouleursByCodes($codes);
 
                 // Check for duplicate (color + category) already in this contract
                 $existants = [];
@@ -205,7 +208,7 @@ class PlancheController extends Controller
                 foreach ($groupes as $groupe) {
                     $code     = $groupe['code_couleur'];
                     $cat      = $groupe['categorie'];
-                    $couleur  = $couleurs[$code] ?? PlancheCouleur::query()->create(['code' => $code]);
+                    $couleur  = $couleurs[$code] ?? $this->createCouleur($code);
 
                     $couleurs[$code] = $couleur;
 
@@ -470,9 +473,74 @@ class PlancheController extends Controller
 
     private function findOrCreateCouleur(string $codeCouleur): PlancheCouleur
     {
-        return PlancheCouleur::query()->firstOrCreate([
+        $codeCouleur = $this->normalizeCodeCouleur($codeCouleur);
+
+        $couleur = $this->findCouleursByCodes(collect([$codeCouleur]))->get($codeCouleur);
+
+        return $couleur ?? $this->createCouleur($codeCouleur);
+    }
+
+    private function createCouleur(string $codeCouleur): PlancheCouleur
+    {
+        $couleur = new PlancheCouleur();
+        $couleur->forceFill($this->couleurAttributes($codeCouleur));
+        $couleur->save();
+
+        return $couleur;
+    }
+
+    private function findCouleursByCodes($codes)
+    {
+        $codes = collect($codes)
+            ->map(fn ($code) => $this->normalizeCodeCouleur((string) $code))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($codes->isEmpty()) {
+            return collect();
+        }
+
+        $query = PlancheCouleur::query();
+
+        if ($this->hasLegacyPlancheCouleurCodeColumn()) {
+            $query->where(function ($builder) use ($codes) {
+                $builder->whereIn('code', $codes)
+                    ->orWhereIn('code_couleur', $codes);
+            });
+        } else {
+            $query->whereIn('code', $codes);
+        }
+
+        return $query->get()->mapWithKeys(function (PlancheCouleur $couleur) {
+            return [$this->extractCouleurCode($couleur) => $couleur];
+        });
+    }
+
+    private function couleurAttributes(string $codeCouleur): array
+    {
+        $attributes = [
             'code' => $this->normalizeCodeCouleur($codeCouleur),
-        ]);
+        ];
+
+        if ($this->hasLegacyPlancheCouleurCodeColumn()) {
+            $attributes['code_couleur'] = $attributes['code'];
+        }
+
+        return $attributes;
+    }
+
+    private function extractCouleurCode(PlancheCouleur $couleur): string
+    {
+        return $this->normalizeCodeCouleur(
+            (string) ($couleur->getAttribute('code') ?: $couleur->getAttribute('code_couleur') ?: '')
+        );
+    }
+
+    private function hasLegacyPlancheCouleurCodeColumn(): bool
+    {
+        return $this->legacyPlancheCouleurCodeColumnExists
+            ??= Schema::hasColumn('planche_couleurs', 'code_couleur');
     }
 
     private function normalizeCodeCouleur(string $codeCouleur): string
@@ -513,7 +581,7 @@ class PlancheController extends Controller
         $categorie   = $firstDetail?->categorie;
 
         $planche->setRelation('couleur', $couleur);
-        $planche->setAttribute('code_couleur', $couleur?->code);
+        $planche->setAttribute('code_couleur', $couleur ? $this->extractCouleurCode($couleur) : null);
         $planche->setAttribute('categorie', $categorie);
 
         return $planche;
@@ -579,6 +647,10 @@ class PlancheController extends Controller
     {
         $sqlState = $exception->errorInfo[0] ?? (string) $exception->getCode();
         $driverMessage = $exception->errorInfo[2] ?? $exception->getMessage();
+
+        if (str_contains($driverMessage, "Field 'code_couleur' doesn't have a default value")) {
+            return 'La table planche_couleurs utilise encore un ancien champ obligatoire code_couleur. Le correctif applicatif est pret, mais il faut redployer ce code sur le serveur.';
+        }
 
         if ($sqlState === '42S22' || str_contains($driverMessage, 'Unknown column')) {
             return 'Le schema de la base ne semble pas a jour. Verifiez les migrations des tables planches, planche_details et planche_couleurs.';
