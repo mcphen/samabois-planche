@@ -24,6 +24,7 @@ use Throwable;
 
 class PlancheController extends Controller
 {
+    private ?bool $legacyPlancheCodeColumnExists = null;
     private ?bool $legacyPlancheCouleurCodeColumnExists = null;
 
     public function index()
@@ -226,7 +227,7 @@ class PlancheController extends Controller
 
                     $couleurs[$code] = $couleur;
 
-                    $planche = $contrat->planches()->create();
+                    $planche = $this->createPlancheForContrat($contrat->id, $code);
 
                     $planche->details()->createMany(
                         collect($groupe['epaisseurs'])->map(fn (array $ep) => [
@@ -294,7 +295,7 @@ class PlancheController extends Controller
                 $couleur        = $this->findExistingCouleurOrFail($codeCouleur);
 
                 $targetPlanche = $this->findPlancheForContratCouleurCategorie($planche->contrat_id, $couleur->id, $categorie)
-                    ?? Planche::query()->create(['contrat_id' => $planche->contrat_id]);
+                    ?? $this->createPlancheForContrat($planche->contrat_id, $codeCouleur);
 
                 if ($targetPlanche->details()
                     ->where('planche_couleur_id', $couleur->id)
@@ -362,7 +363,7 @@ class PlancheController extends Controller
                 $couleur         = $this->findExistingCouleurOrFail($codeCouleur);
 
                 $targetPlanche = $this->findPlancheForContratCouleurCategorie($planche->contrat_id, $couleur->id, $categorie)
-                    ?? Planche::query()->create(['contrat_id' => $planche->contrat_id]);
+                    ?? $this->createPlancheForContrat($planche->contrat_id, $codeCouleur);
 
                 $duplicate = $targetPlanche->details()
                     ->where('planche_couleur_id', $couleur->id)
@@ -558,6 +559,28 @@ class PlancheController extends Controller
         return $attributes;
     }
 
+    private function createPlancheForContrat(int $contratId, string $codeCouleur): Planche
+    {
+        $planche = new Planche();
+        $planche->forceFill($this->plancheAttributes($contratId, $codeCouleur));
+        $planche->save();
+
+        return $planche;
+    }
+
+    private function plancheAttributes(int $contratId, string $codeCouleur): array
+    {
+        $attributes = [
+            'contrat_id' => $contratId,
+        ];
+
+        if ($this->hasLegacyPlancheCodeColumn()) {
+            $attributes['code_couleur'] = $this->normalizeCodeCouleur($codeCouleur);
+        }
+
+        return $attributes;
+    }
+
     private function extractCouleurCode(PlancheCouleur $couleur): string
     {
         return $this->normalizeCodeCouleur(
@@ -569,6 +592,12 @@ class PlancheController extends Controller
     {
         return $this->legacyPlancheCouleurCodeColumnExists
             ??= Schema::hasColumn('planche_couleurs', 'code_couleur');
+    }
+
+    private function hasLegacyPlancheCodeColumn(): bool
+    {
+        return $this->legacyPlancheCodeColumnExists
+            ??= Schema::hasColumn('planches', 'code_couleur');
     }
 
     private function normalizeCodeCouleur(string $codeCouleur): string
@@ -675,9 +704,18 @@ class PlancheController extends Controller
     {
         $sqlState = $exception->errorInfo[0] ?? (string) $exception->getCode();
         $driverMessage = $exception->errorInfo[2] ?? $exception->getMessage();
+        $sql = $exception->getSql();
 
         if (str_contains($driverMessage, "Field 'code_couleur' doesn't have a default value")) {
-            return 'La table planche_couleurs utilise encore un ancien champ obligatoire code_couleur. Le correctif applicatif est pret, mais il faut redployer ce code sur le serveur.';
+            if (str_contains($sql, '`planches`')) {
+                return 'La table planches utilise encore un ancien champ obligatoire code_couleur. Le correctif applicatif est pret, mais il faut redployer ce code sur le serveur.';
+            }
+
+            if (str_contains($sql, '`planche_couleurs`')) {
+                return 'La table planche_couleurs utilise encore un ancien champ obligatoire code_couleur. Le correctif applicatif est pret, mais il faut redployer ce code sur le serveur.';
+            }
+
+            return 'Un ancien champ obligatoire code_couleur existe encore en base. Le correctif applicatif est pret, mais il faut redployer ce code sur le serveur.';
         }
 
         if ($sqlState === '42S22' || str_contains($driverMessage, 'Unknown column')) {
