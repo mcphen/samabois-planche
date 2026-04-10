@@ -23,7 +23,12 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group mb-0">
-                                <label><i class="fa fa-building-o mr-1 text-muted"></i> Fournisseur *</label>
+                                <label>
+                                    <i class="fa fa-building-o mr-1 text-muted"></i> Fournisseur *
+                                    <button type="button" class="btn btn-success btn-sm ms-2" @click="showModal = true">
+                                        <i class="fa fa-plus"></i> Ajouter fournisseur
+                                    </button>
+                                </label>
                                 <select v-model="form.supplier_id" class="form-control">
                                     <option value="">Selectionner un fournisseur</option>
                                     <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
@@ -181,6 +186,42 @@
                 </div>
             </div>
         </div>
+        <!-- Modal ajout fournisseur -->
+        <div v-if="showModal" class="modal d-block" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Ajouter un fournisseur</h5>
+                        <button type="button" class="close" @click="closeModal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div v-if="modalError" class="alert alert-danger">{{ modalError }}</div>
+                        <form @submit.prevent="storeSupplier">
+                            <div class="form-group">
+                                <label>Nom *</label>
+                                <input v-model="newSupplier.name" type="text" class="form-control" required />
+                            </div>
+                            <div class="form-group">
+                                <label>Adresse</label>
+                                <input v-model="newSupplier.address" type="text" class="form-control" />
+                            </div>
+                            <div class="form-group">
+                                <label>Telephone</label>
+                                <input v-model="newSupplier.phone" type="text" class="form-control" />
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input v-model="newSupplier.email" type="email" class="form-control" />
+                            </div>
+                            <button type="submit" class="btn btn-success" :disabled="modalSubmitting">
+                                {{ modalSubmitting ? 'Ajout...' : 'Ajouter' }}
+                            </button>
+                            <button type="button" class="btn btn-secondary ml-2" @click="closeModal">Annuler</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
     </AuthenticatedLayout>
 </template>
 
@@ -188,7 +229,7 @@
 import axios from 'axios';
 import { Head, Link } from '@inertiajs/vue3';
 import { Inertia } from '@inertiajs/inertia';
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
 import PlancheColorInput from '@/Components/PlancheColorInput.vue';
@@ -208,6 +249,39 @@ const breadcrumbs = [
 const submitting = ref(false);
 const formError = ref('');
 const errors = ref({});
+
+const showModal = ref(false);
+const modalSubmitting = ref(false);
+const modalError = ref('');
+const newSupplier = reactive({ name: '', address: '', phone: '', email: '' });
+
+function closeModal() {
+    showModal.value = false;
+    modalError.value = '';
+    newSupplier.name = '';
+    newSupplier.address = '';
+    newSupplier.phone = '';
+    newSupplier.email = '';
+}
+
+function storeSupplier() {
+    modalError.value = '';
+    modalSubmitting.value = true;
+
+    axios.post('/admin/suppliers/store', newSupplier)
+        .then((response) => {
+            const supplier = response.data.supplier;
+            props.suppliers.push(supplier);
+            form.value.supplier_id = supplier.id;
+            closeModal();
+        })
+        .catch((error) => {
+            modalError.value = error.response?.data?.message || 'Erreur lors de l ajout du fournisseur.';
+        })
+        .finally(() => {
+            modalSubmitting.value = false;
+        });
+}
 const epaisseurOptions = computed(() => {
     return props.epaisseurs
         .map((item) => {
