@@ -5,11 +5,12 @@ namespace App\Models;
 use App\Traits\HasSyncUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Client extends Model
 {
-    use HasFactory, HasSyncUuid;
+    use HasFactory, HasSyncUuid, SoftDeletes;
 
     protected $fillable = ['name', 'slug','address', 'phone', 'email','amount_due','amount_solde','amount_payment'];
 

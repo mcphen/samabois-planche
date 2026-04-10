@@ -14,8 +14,10 @@ class SupplierConfigurationController extends Controller
     {
         return response()->json(
             Supplier::query()
+                ->withCount('contrats')
                 ->orderBy('name')
                 ->get(['id', 'name', 'address', 'phone', 'email'])
+                ->map(fn (Supplier $supplier) => $this->formatSupplier($supplier))
         );
     }
 
@@ -24,10 +26,12 @@ class SupplierConfigurationController extends Controller
         $created = DB::transaction(function () use ($request) {
             return collect($request->validated('rows'))
                 ->map(function (array $row) {
-                    return Supplier::query()->create([
+                    $supplier = Supplier::query()->create([
                         'name' => $row['name'],
                         'slug_name' => $row['slug_name'],
-                    ])->only(['id', 'name', 'address', 'phone', 'email']);
+                    ]);
+
+                    return $this->formatSupplier($supplier);
                 })
                 ->values();
         });
@@ -50,16 +54,37 @@ class SupplierConfigurationController extends Controller
 
         return response()->json([
             'message' => 'Fournisseur mis a jour avec succes.',
-            'data' => $supplier->fresh()->only(['id', 'name', 'address', 'phone', 'email']),
+            'data' => $this->formatSupplier($supplier->fresh()->loadCount('contrats')),
         ]);
     }
 
     public function destroy(Supplier $supplier): JsonResponse
     {
+        if ($supplier->contrats()->exists()) {
+            return response()->json([
+                'message' => 'Suppression impossible: ce fournisseur est deja utilise dans un contrat.',
+            ], 422);
+        }
+
         $supplier->delete();
 
         return response()->json([
             'message' => 'Fournisseur supprime avec succes.',
         ]);
+    }
+
+    private function formatSupplier(Supplier $supplier): array
+    {
+        $contratsCount = (int) ($supplier->contrats_count ?? 0);
+
+        return [
+            'id' => $supplier->id,
+            'name' => $supplier->name,
+            'address' => $supplier->address,
+            'phone' => $supplier->phone,
+            'email' => $supplier->email,
+            'contrats_count' => $contratsCount,
+            'can_delete' => $contratsCount === 0,
+        ];
     }
 }

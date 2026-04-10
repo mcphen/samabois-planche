@@ -122,7 +122,12 @@
                                         </td>
                                     </template>
                                     <template v-else>
-                                        <td>{{ supplier.name }}</td>
+                                        <td>
+                                            <div>{{ supplier.name }}</div>
+                                            <small v-if="supplier.contrats_count" class="text-muted">
+                                                Lie a {{ supplier.contrats_count }} contrat(s)
+                                            </small>
+                                        </td>
                                         <td>{{ supplier.address || '-' }}</td>
                                         <td>{{ supplier.phone || '-' }}</td>
                                         <td>{{ supplier.email || '-' }}</td>
@@ -133,7 +138,8 @@
                                             <button
                                                 type="button"
                                                 class="btn btn-sm btn-outline-danger"
-                                                :disabled="deletingId === supplier.id"
+                                                :disabled="deletingId === supplier.id || !supplier.can_delete"
+                                                :title="supplier.can_delete ? 'Supprimer ce fournisseur' : 'Suppression impossible: fournisseur deja lie a un contrat'"
                                                 @click="deleteSupplier(supplier)"
                                             >
                                                 <i class="fa fa-trash"></i>
@@ -276,6 +282,11 @@ async function updateSupplier(id) {
 }
 
 async function deleteSupplier(supplier) {
+    if (!supplier.can_delete) {
+        showFlash('danger', 'Suppression impossible: ce fournisseur est deja utilise dans un contrat.');
+        return;
+    }
+
     if (!window.confirm(`Supprimer le fournisseur "${supplier.name}" ?`)) {
         return;
     }

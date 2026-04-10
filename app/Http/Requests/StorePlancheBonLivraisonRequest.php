@@ -18,9 +18,7 @@ class StorePlancheBonLivraisonRequest extends FormRequest
     {
         return [
             'client_id' => ['required', 'integer', 'exists:clients,id'],
-            'numero_bl' => ['required', 'string', 'max:255', 'unique:planche_bons_livraison,numero_bl'],
             'date_livraison' => ['required', 'date'],
-            'statut' => ['required', 'in:brouillon,valide'],
             'lignes' => ['required', 'array', 'min:1'],
             'lignes.*.planche_detail_id' => ['required', 'integer', 'distinct', 'exists:planche_details,id'],
             'lignes.*.quantite_livree' => ['required', 'integer', 'min:1'],

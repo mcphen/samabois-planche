@@ -188,7 +188,12 @@
                                                     </td>
                                                 </template>
                                                 <template v-else>
-                                                    <td>{{ epaisseur.intitule }}</td>
+                                                    <td>
+                                                        <div>{{ epaisseur.intitule }}</div>
+                                                        <small v-if="epaisseur.usage_count" class="text-muted">
+                                                            Utilisee dans {{ epaisseur.usage_count }} ligne(s) de planche
+                                                        </small>
+                                                    </td>
                                                     <td><code>{{ epaisseur.slug }}</code></td>
                                                     <td class="text-center align-middle">
                                                         <button type="button" class="btn btn-sm btn-outline-primary mr-1" @click="startEdit(epaisseur)">
@@ -197,7 +202,8 @@
                                                         <button
                                                             type="button"
                                                             class="btn btn-sm btn-outline-danger"
-                                                            :disabled="isDeletingId === epaisseur.id"
+                                                            :disabled="isDeletingId === epaisseur.id || !epaisseur.can_delete"
+                                                            :title="epaisseur.can_delete ? 'Supprimer cette epaisseur' : 'Suppression impossible: epaisseur deja utilisee'"
                                                             @click="deleteEpaisseur(epaisseur)"
                                                         >
                                                             <i class="fa fa-trash"></i>
@@ -387,6 +393,11 @@ async function updateEpaisseur(id) {
 }
 
 async function deleteEpaisseur(epaisseur) {
+    if (!epaisseur.can_delete) {
+        showFlash('danger', 'Suppression impossible: cette epaisseur est deja utilisee dans des lignes de planche.');
+        return;
+    }
+
     if (!window.confirm(`Supprimer l epaisseur "${epaisseur.intitule}" ?`)) {
         return;
     }

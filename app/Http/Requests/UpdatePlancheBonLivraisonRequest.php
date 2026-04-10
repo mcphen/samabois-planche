@@ -6,7 +6,6 @@ use App\Models\PlancheBonLivraison;
 use App\Models\PlancheDetail;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdatePlancheBonLivraisonRequest extends FormRequest
@@ -18,19 +17,8 @@ class UpdatePlancheBonLivraisonRequest extends FormRequest
 
     public function rules(): array
     {
-        $bonLivraison = $this->route('plancheBonLivraison');
-        $bonLivraisonId = $bonLivraison instanceof PlancheBonLivraison
-            ? $bonLivraison->id
-            : $bonLivraison;
-
         return [
             'client_id' => ['required', 'integer', 'exists:clients,id'],
-            'numero_bl' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('planche_bons_livraison', 'numero_bl')->ignore($bonLivraisonId),
-            ],
             'date_livraison' => ['required', 'date'],
             'statut' => ['required', 'in:brouillon,valide'],
             'lignes' => ['required', 'array', 'min:1'],

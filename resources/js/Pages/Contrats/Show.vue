@@ -5,6 +5,9 @@
         <BreadcrumbsAndActions :title="`Contrat ${contrat.numero}`" :breadcrumbs="breadcrumbs">
             <template #action>
                 <div class="d-flex flex-wrap" style="gap: 8px;">
+                    <button type="button" class="btn btn-outline-secondary" @click="openEditModal">
+                        <i class="fa fa-pencil"></i> Modifier
+                    </button>
                     <Link class="btn btn-outline-info" href="/admin/planche-bons-livraison/create">
                         <i class="fa fa-truck"></i> Nouvelle facture
                     </Link>
@@ -187,6 +190,43 @@
         </div>
     </div>
 
+    <div v-if="showEditModal" class="modal d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modifier le contrat {{ contrat.numero }}</h5>
+                    <button type="button" class="close" @click="closeEditModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="editFormError" class="alert alert-danger mb-3">
+                        <i class="fa fa-exclamation-circle mr-2"></i>{{ editFormError }}
+                    </div>
+                    <div class="form-group">
+                        <label>Fournisseur</label>
+                        <select v-model="editForm.supplier_id" class="form-control">
+                            <option value="">Selectionner un fournisseur</option>
+                            <option v-for="supplier in suppliers" :key="supplier.id" :value="String(supplier.id)">
+                                {{ supplier.name }}
+                            </option>
+                        </select>
+                        <small v-if="editErrors.supplier_id" class="text-danger d-block mt-1">{{ editErrors.supplier_id[0] }}</small>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label>Numero du contrat</label>
+                        <input v-model="editForm.numero" type="text" class="form-control" placeholder="Ex: CT-001" />
+                        <small v-if="editErrors.numero" class="text-danger d-block mt-1">{{ editErrors.numero[0] }}</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success btn-sm" :disabled="submittingEdit" @click="submitEditForm">
+                        {{ submittingEdit ? 'Mise a jour...' : 'Enregistrer' }}
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" @click="closeEditModal">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div v-if="modalPlanche" class="modal d-block" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
@@ -237,6 +277,7 @@ const props = defineProps({
     contrat: { type: Object, required: true },
     active_planche_id: { type: Number, default: null },
     epaisseurs: { type: Array, default: () => [] },
+    suppliers: { type: Array, default: () => [] },
 });
 
 const appName = import.meta.env.VITE_APP_NAME;
@@ -247,6 +288,10 @@ const breadcrumbs = [
 ];
 
 const modalPlanche = ref(null);
+const showEditModal = ref(false);
+const submittingEdit = ref(false);
+const editFormError = ref('');
+const editErrors = ref({});
 const showCreateModal = ref(false);
 const submittingCreate = ref(false);
 const createFormError = ref('');
@@ -257,12 +302,20 @@ const epaisseurOptions = computed(() => props.epaisseurs.map((item) => {
     return value ? { id: item.id, label: item.intitule, value } : null;
 }).filter(Boolean));
 const createForm = ref(buildInitialCreateForm());
+const editForm = ref(buildInitialEditForm());
 
 function buildInitialCreateForm() {
     return {
         supplier_id: props.contrat.supplier_id || props.contrat.supplier?.id || '',
         numero_contrat: props.contrat.numero || '',
         rows: [createRow()],
+    };
+}
+
+function buildInitialEditForm() {
+    return {
+        supplier_id: String(props.contrat.supplier_id || props.contrat.supplier?.id || ''),
+        numero: props.contrat.numero || '',
     };
 }
 
@@ -284,6 +337,14 @@ function resetCreateForm() {
     createFormError.value = '';
 }
 
+function resetEditForm() {
+    editForm.value = buildInitialEditForm();
+    editErrors.value = {};
+    editFormError.value = '';
+}
+
+function openEditModal() { resetEditForm(); showEditModal.value = true; }
+function closeEditModal() { showEditModal.value = false; resetEditForm(); }
 function openCreateModal() { resetCreateForm(); showCreateModal.value = true; }
 function closeCreateModal() { showCreateModal.value = false; resetCreateForm(); }
 function addCreateRow(index) { createForm.value.rows.splice(index + 1, 0, createRow()); }
@@ -372,6 +433,30 @@ function submitCreateForm() {
             createFormError.value = detail ? `${message} ${detail}` : message;
         })
         .finally(() => { submittingCreate.value = false; });
+}
+function submitEditForm() {
+    submittingEdit.value = true;
+    editErrors.value = {};
+    editFormError.value = '';
+
+    axios.put(`/admin/contrats/${props.contrat.id}`, {
+        supplier_id: editForm.value.supplier_id,
+        numero: editForm.value.numero,
+    })
+        .then((response) => {
+            closeEditModal();
+            Inertia.visit(response?.data?.data?.redirect_to || `/admin/contrats/${props.contrat.id}`);
+        })
+        .catch((error) => {
+            if (error.response?.status === 422) {
+                editErrors.value = error.response.data.errors || {};
+                editFormError.value = error.response.data.message || 'Veuillez corriger les erreurs du formulaire.';
+                return;
+            }
+
+            editFormError.value = error.response?.data?.message || 'Une erreur est survenue pendant la mise a jour.';
+        })
+        .finally(() => { submittingEdit.value = false; });
 }
 function categorieLabel(cat) { return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-'; }
 function categorieBadgeClass(cat) { return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light'; }

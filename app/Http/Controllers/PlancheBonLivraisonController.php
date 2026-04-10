@@ -13,6 +13,7 @@ use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class PlancheBonLivraisonController extends Controller
@@ -30,7 +31,7 @@ class PlancheBonLivraisonController extends Controller
             'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
             'clients' => Client::query()->select('id', 'name')->orderBy('name')->get(),
             'epaisseurs' => Epaisseur::query()->orderBy('intitule')->get(['id', 'intitule', 'slug']),
-            'availableDetails' => $this->availableDetailsCollection(),
+            'availableDetails' => [],
         ]);
     }
 
@@ -95,9 +96,9 @@ class PlancheBonLivraisonController extends Controller
         $bonLivraison = DB::transaction(function () use ($request) {
             $bonLivraison = PlancheBonLivraison::query()->create([
                 'client_id' => $request->integer('client_id'),
-                'numero_bl' => trim($request->string('numero_bl')->toString()),
+                'numero_bl' => $this->generateNumeroBl(),
                 'date_livraison' => $request->input('date_livraison'),
-                'statut' => $request->string('statut')->toString(),
+                'statut' => 'valide',
             ]);
 
             $bonLivraison->lignes()->createMany(
@@ -130,7 +131,6 @@ class PlancheBonLivraisonController extends Controller
         $plancheBonLivraison = DB::transaction(function () use ($request, $plancheBonLivraison) {
             $plancheBonLivraison->update([
                 'client_id' => $request->integer('client_id'),
-                'numero_bl' => trim($request->string('numero_bl')->toString()),
                 'date_livraison' => $request->input('date_livraison'),
                 'statut' => $request->string('statut')->toString(),
             ]);
@@ -341,5 +341,23 @@ class PlancheBonLivraisonController extends Controller
             'prix_unitaire' => $prixUnitaire,
             'prix_total' => round($quantiteLivree * $prixUnitaire, 2),
         ];
+    }
+
+    private function generateNumeroBl(): string
+    {
+        $datePrefix = now()->format('Ymd');
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $suffix = strtoupper(Str::random(4));
+            $numero = "BL-{$datePrefix}-{$suffix}";
+
+            if (! PlancheBonLivraison::query()->where('numero_bl', $numero)->exists()) {
+                return $numero;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'numero_bl' => 'Impossible de generer automatiquement un numero de facture unique. Veuillez reessayer.',
+        ]);
     }
 }

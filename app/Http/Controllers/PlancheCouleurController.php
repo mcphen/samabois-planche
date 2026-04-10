@@ -16,8 +16,10 @@ class PlancheCouleurController extends Controller
     {
         return response()->json(
             PlancheCouleur::query()
+                ->withCount('details')
                 ->orderBy('code')
                 ->get(['id', 'code', 'image_path'])
+                ->map(fn (PlancheCouleur $couleur) => $this->formatCouleur($couleur))
         );
     }
 
@@ -33,7 +35,7 @@ class PlancheCouleurController extends Controller
 
         return response()->json([
             'message' => 'Les couleurs ont ete enregistrees avec succes.',
-            'data' => $created,
+            'data' => $created->map(fn (PlancheCouleur $couleur) => $this->formatCouleur($couleur)),
         ], 201);
     }
 
@@ -47,12 +49,18 @@ class PlancheCouleurController extends Controller
 
         return response()->json([
             'message' => 'Couleur mise a jour avec succes.',
-            'data' => $plancheCouleur->fresh(),
+            'data' => $this->formatCouleur($plancheCouleur->fresh()->loadCount('details')),
         ]);
     }
 
     public function destroy(PlancheCouleur $plancheCouleur): JsonResponse
     {
+        if ($plancheCouleur->details()->exists()) {
+            return response()->json([
+                'message' => 'Suppression impossible: cette couleur est deja utilisee dans des lignes de planche.',
+            ], 422);
+        }
+
         if ($plancheCouleur->image_path) {
             Storage::disk('public')->delete($plancheCouleur->image_path);
         }
@@ -62,6 +70,20 @@ class PlancheCouleurController extends Controller
         return response()->json([
             'message' => 'Couleur supprimee avec succes.',
         ]);
+    }
+
+    private function formatCouleur(PlancheCouleur $couleur): array
+    {
+        $usageCount = (int) ($couleur->details_count ?? 0);
+
+        return [
+            'id' => $couleur->id,
+            'code' => $couleur->code,
+            'image_path' => $couleur->image_path,
+            'image_url' => $couleur->image_url,
+            'usage_count' => $usageCount,
+            'can_delete' => $usageCount === 0,
+        ];
     }
 
     private function syncImage(PlancheCouleur $couleur, ?UploadedFile $image = null): void

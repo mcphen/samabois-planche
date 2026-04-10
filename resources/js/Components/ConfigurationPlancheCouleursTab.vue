@@ -145,6 +145,9 @@
                                         </td>
                                         <td class="align-middle">
                                             <strong>{{ couleur.code }}</strong>
+                                            <div v-if="couleur.usage_count" class="text-muted small">
+                                                Utilisee dans {{ couleur.usage_count }} ligne(s) de planche
+                                            </div>
                                         </td>
                                         <td class="text-center align-middle">
                                             <button type="button" class="btn btn-sm btn-outline-primary mr-1" @click="startEdit(couleur)">
@@ -153,7 +156,8 @@
                                             <button
                                                 type="button"
                                                 class="btn btn-sm btn-outline-danger"
-                                                :disabled="deletingId === couleur.id"
+                                                :disabled="deletingId === couleur.id || !couleur.can_delete"
+                                                :title="couleur.can_delete ? 'Supprimer cette couleur' : 'Suppression impossible: couleur deja utilisee'"
                                                 @click="deleteCouleur(couleur)"
                                             >
                                                 <i class="fa fa-trash"></i>
@@ -322,6 +326,11 @@ async function updateCouleur(id) {
 }
 
 async function deleteCouleur(couleur) {
+    if (!couleur.can_delete) {
+        showFlash('danger', 'Suppression impossible: cette couleur est deja utilisee dans des lignes de planche.');
+        return;
+    }
+
     if (!window.confirm(`Supprimer la couleur "${couleur.code}" ?`)) {
         return;
     }

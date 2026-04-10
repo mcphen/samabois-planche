@@ -8,6 +8,7 @@ use App\Models\Planche;
 use App\Models\PlancheDetail;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ContratController extends Controller
@@ -33,6 +34,38 @@ class ContratController extends Controller
             'contrat' => $contrat,
             'active_planche_id' => $activePlancheId,
             'epaisseurs' => Epaisseur::query()->orderBy('intitule')->get(['id', 'intitule', 'slug']),
+            'suppliers' => Supplier::query()
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get(),
+        ]);
+    }
+
+    public function update(Request $request, Contrat $contrat)
+    {
+        $validated = $request->validate([
+            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
+            'numero' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('contrats')->where(fn ($query) => $query->where('supplier_id', $request->integer('supplier_id')))->ignore($contrat->id),
+            ],
+        ], [
+            'supplier_id.required' => 'Veuillez selectionner un fournisseur.',
+            'supplier_id.exists' => 'Le fournisseur selectionne est invalide.',
+            'numero.required' => 'Veuillez renseigner le numero du contrat.',
+            'numero.unique' => 'Ce numero de contrat existe deja pour ce fournisseur.',
+        ]);
+
+        $contrat->update($validated);
+        $contrat->load($this->contratRelations());
+
+        return response()->json([
+            'message' => 'Contrat mis a jour avec succes.',
+            'data' => [
+                'redirect_to' => route('contrats.show', $contrat),
+            ],
         ]);
     }
 
