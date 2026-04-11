@@ -10,10 +10,9 @@ use App\Models\Invoice;
 use App\Models\PlancheBonLivraison;
 use App\Models\PlancheDetail;
 use App\Models\Supplier;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Inertia\Inertia;
 
@@ -59,10 +58,24 @@ class PlancheBonLivraisonController extends Controller
         ]);
     }
 
+    public function edit(PlancheBonLivraison $plancheBonLivraison)
+    {
+        $plancheBonLivraison->load($this->bonRelations());
+
+        return Inertia::render('PlancheBonsLivraison/Edit', [
+            'bonLivraison' => $this->decorateBonLivraison($plancheBonLivraison),
+            'availableDetails' => $this->availableDetailsCollection(null, '', '', '', '', $plancheBonLivraison->id),
+            'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
+            'clients' => Client::query()->select('id', 'name')->orderBy('name')->get(),
+            'epaisseurs' => Epaisseur::query()->orderBy('intitule')->get(['id', 'intitule', 'slug']),
+        ]);
+    }
+
     public function getBonsLivraison(Request $request)
     {
         $query = PlancheBonLivraison::query()
-            ->with(['client:id,name', 'invoice:id,client_id,planche_bon_livraison_id,matricule'])
+            ->with(['client:id,name'])
+            ->with(['invoice:id,planche_bon_livraison_id,matricule'])
             ->with($this->bonRelations())
             ->withCount('lignes')
             ->latest();
@@ -118,10 +131,6 @@ class PlancheBonLivraisonController extends Controller
                     ->all()
             );
 
-            if ($bonLivraison->statut === 'valide') {
-                $this->createInvoiceFromBonLivraison($bonLivraison);
-            }
-
             return $bonLivraison;
         });
 
@@ -136,8 +145,6 @@ class PlancheBonLivraisonController extends Controller
 
     public function update(UpdatePlancheBonLivraisonRequest $request, PlancheBonLivraison $plancheBonLivraison)
     {
-        $this->ensureBonLivraisonIsDraft($plancheBonLivraison);
-
         $plancheBonLivraison = DB::transaction(function () use ($request, $plancheBonLivraison) {
             $plancheBonLivraison->update([
                 'client_id' => $request->integer('client_id'),
@@ -153,8 +160,12 @@ class PlancheBonLivraisonController extends Controller
                     ->all()
             );
 
-            if ($plancheBonLivraison->statut === 'valide') {
-                $this->createInvoiceFromBonLivraison($plancheBonLivraison);
+            if ($plancheBonLivraison->invoice) {
+                $plancheBonLivraison->invoice->update([
+                    'client_id' => $request->integer('client_id'),
+                    'date' => $request->input('date_livraison'),
+                ]);
+                $plancheBonLivraison->invoice->updateTotalPrice();
             }
 
             return $plancheBonLivraison->fresh();
@@ -171,9 +182,16 @@ class PlancheBonLivraisonController extends Controller
 
     public function destroy(PlancheBonLivraison $plancheBonLivraison)
     {
-        $this->ensureBonLivraisonIsDraft($plancheBonLivraison);
-
         DB::transaction(function () use ($plancheBonLivraison) {
+            $plancheBonLivraison->loadMissing([
+                'invoice.client',
+                'invoice.items.articleItem',
+            ]);
+
+            if ($plancheBonLivraison->invoice) {
+                $this->cancelLinkedInvoice($plancheBonLivraison->invoice);
+            }
+
             $plancheBonLivraison->delete();
         });
 
@@ -189,7 +207,7 @@ class PlancheBonLivraisonController extends Controller
     {
         return [
             'client:id,name',
-            'invoice:id,client_id,planche_bon_livraison_id,matricule',
+            'invoice:id,planche_bon_livraison_id,matricule',
             'lignes:id,planche_bon_livraison_id,planche_detail_id,quantite_livree,prix_unitaire,prix_total',
             'lignes.plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
             'lignes.plancheDetail.couleur:id,code',
@@ -297,9 +315,10 @@ class PlancheBonLivraisonController extends Controller
             'numero_bl' => $bonLivraison->numero_bl,
             'date_livraison' => optional($bonLivraison->date_livraison)->format('Y-m-d'),
             'statut' => $bonLivraison->statut,
-            'can_edit' => $bonLivraison->statut === 'brouillon',
             'invoice_id' => $bonLivraison->invoice?->id,
             'invoice_matricule' => $bonLivraison->invoice?->matricule,
+            'can_edit' => true,
+            'can_cancel' => true,
             'lignes_count' => $lignes->count(),
             'quantite_totale_livree' => $lignes->sum('quantite_livree'),
             'montant_total' => (float) $lignes->sum('prix_total'),
@@ -309,35 +328,60 @@ class PlancheBonLivraisonController extends Controller
         ];
     }
 
-    private function createInvoiceFromBonLivraison(PlancheBonLivraison $plancheBonLivraison): Invoice
+    private function cancelLinkedInvoice(Invoice $invoice): void
     {
-        $plancheBonLivraison->loadMissing('invoice', 'client');
+        $montantSolde = (float) ($invoice->montant_solde ?? 0);
+        $client = $invoice->client;
 
-        if ($plancheBonLivraison->invoice) {
-            return $plancheBonLivraison->invoice;
-        }
-
-        $invoice = Invoice::query()->create([
-            'client_id' => $plancheBonLivraison->client_id,
-            'planche_bon_livraison_id' => $plancheBonLivraison->id,
-            'date' => optional($plancheBonLivraison->date_livraison)->format('Y-m-d'),
-            'total_price' => 0,
-            'status' => 'pending',
+        $invoice->update([
+            'status' => 'canceled',
             'montant_solde' => 0,
         ]);
 
-        $invoice->updateTotalPrice();
+        foreach ($invoice->items as $item) {
+            if ($item->articleItem) {
+                $item->articleItem->update(['indisponible' => 0]);
+            }
 
-        return $invoice;
-    }
-
-    private function ensureBonLivraisonIsDraft(PlancheBonLivraison $plancheBonLivraison): void
-    {
-        if ($plancheBonLivraison->statut !== 'brouillon') {
-            throw ValidationException::withMessages([
-                'statut' => 'Cette facture est valide et ne peut plus etre modifiee ou supprimee.',
-            ]);
+            $item->delete();
         }
+
+        if ($client) {
+            $facturesNonSoldees = $client->invoices()
+                ->where('status', 'pending')
+                ->orderBy('date')
+                ->get();
+
+            foreach ($facturesNonSoldees as $facture) {
+                $resteAFacturer = $facture->total_price - $facture->montant_solde;
+
+                if ($montantSolde <= 0) {
+                    break;
+                }
+
+                if ($montantSolde >= $resteAFacturer) {
+                    $facture->update([
+                        'montant_solde' => $facture->total_price,
+                        'status' => 'validated',
+                    ]);
+                    $montantSolde -= $resteAFacturer;
+                } else {
+                    $facture->update([
+                        'montant_solde' => $facture->montant_solde + $montantSolde,
+                    ]);
+                    $montantSolde = 0;
+                }
+            }
+
+            if ($montantSolde > 0) {
+                $client->update([
+                    'credit_disponible' => $client->credit_disponible + $montantSolde,
+                ]);
+            }
+        }
+
+        Transaction::query()->where('invoice_id', $invoice->id)->delete();
+        $invoice->delete();
     }
 
     private function mapBonLivraisonLinePayload(array $ligne): array
@@ -355,19 +399,21 @@ class PlancheBonLivraisonController extends Controller
 
     private function generateNumeroBl(): string
     {
-        $datePrefix = now()->format('Ymd');
+        $year = now()->year;
 
-        for ($attempt = 0; $attempt < 10; $attempt++) {
-            $suffix = strtoupper(Str::random(4));
-            $numero = "BL-{$datePrefix}-{$suffix}";
+        $last = PlancheBonLivraison::query()
+            ->whereYear('created_at', $year)
+            ->where('numero_bl', 'like', "%/{$year}")
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->first();
 
-            if (! PlancheBonLivraison::query()->where('numero_bl', $numero)->exists()) {
-                return $numero;
-            }
+        $next = 1;
+
+        if ($last && preg_match('/^(\d+)\/\d{4}$/', $last->numero_bl, $matches)) {
+            $next = (int) $matches[1] + 1;
         }
 
-        throw ValidationException::withMessages([
-            'numero_bl' => 'Impossible de generer automatiquement un numero de facture unique. Veuillez reessayer.',
-        ]);
+        return "{$next}/{$year}";
     }
 }

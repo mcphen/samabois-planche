@@ -4,106 +4,104 @@
     <AuthenticatedLayout>
         <BreadcrumbsAndActions :title="`Facture ${bonLivraison.numero_bl}`" :breadcrumbs="breadcrumbs">
             <template #action>
-                <Link class="btn btn-primary mr-2" href="/admin/planche-bons-livraison">
-                    <i class="fa fa-arrow-left"></i> Retour a la liste
-                </Link>
-               
-                <button type="button" class="btn btn-secondary" @click="generatePDF">
+                <button type="button" class="btn btn-primary m-1" @click="generatePDF">
                     <i class="fa fa-print"></i> Imprimer
                 </button>
+                <button
+                    v-if="bonLivraison.can_edit"
+                    type="button"
+                    class="btn btn-warning m-1"
+                    @click="editBonLivraison"
+                >
+                    <i class="fa fa-edit"></i> Modifier
+                </button>
+                <button
+                    v-if="bonLivraison.can_cancel"
+                    type="button"
+                    class="btn btn-danger m-1"
+                    @click="cancelBonLivraison"
+                >
+                    <i class="fa fa-trash"></i> Annuler
+                </button>
+                <Link class="btn btn-outline-primary m-1" href="/admin/planche-bons-livraison">
+                    <i class="fa fa-arrow-left"></i> Retour a la liste
+                </Link>
             </template>
         </BreadcrumbsAndActions>
 
-        <div class="row clearfix row-deck">
-            <div class="col-lg-3 col-md-6 col-sm-12">
-                <div class="card primary-bg"><div class="body"><div class="p-15 text-light"><h3>{{ bonLivraison.numero_bl }}</h3><span>Numero facture</span></div></div></div>
-            </div>
-            <div class="col-lg-3 col-md-6 col-sm-12">
-                <div class="card secondary-bg"><div class="body"><div class="p-15 text-light"><h3>{{ bonLivraison.client_name || '-' }}</h3><span>Client</span></div></div></div>
-            </div>
-            <div class="col-lg-3 col-md-6 col-sm-12">
-                <div class="card bg-info"><div class="body"><div class="p-15 text-light"><h3>{{ bonLivraison.lignes_count }}</h3><span>Lignes</span></div></div></div>
-            </div>
-            <div class="col-lg-3 col-md-6 col-sm-12">
-                <div class="card bg-success"><div class="body"><div class="p-15 text-light"><h3>{{ bonLivraison.invoice_matricule || '-' }}</h3><span>Facture</span></div></div></div>
-            </div>
-        </div>
-
         <div class="row clearfix">
-            <div class="col-lg-4 col-md-12">
-                <div class="card">
-                    <div class="header"><h2>Informations generales</h2></div>
+            <div class="col-lg-12 col-md-12">
+                <div class="card invoice1">
                     <div class="body">
-                        <div class="mb-3"><strong>Client :</strong> {{ bonLivraison.client_name || '-' }}</div>
-                        <div class="mb-3"><strong>Numero facture :</strong> {{ bonLivraison.numero_bl || '-' }}</div>
-                        <div class="mb-3"><strong>Date de livraison :</strong> {{ bonLivraison.date_livraison || '-' }}</div>
-                        <div class="mb-3">
-                            <strong>Statut :</strong>
-                            <span class="badge badge-success ml-2">valide</span>
+                        <div class="invoice-top clearfix">
+                            <div class="info">
+                                <h6>Client : {{ bonLivraison.client_name || '-' }}</h6>
+                                <p class="mb-0">Date de livraison : {{ bonLivraison.date_livraison || '-' }}</p>
+                                
+                            </div>
+                            <div class="title">
+                                <h4>Facture {{ bonLivraison.numero_bl }}</h4>
+                                <p>
+                                    <span class="badge" :class="bonLivraison.statut === 'valide' ? 'badge-success' : 'badge-warning'">
+                                        {{ bonLivraison.statut }}
+                                    </span>
+                                </p>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <strong>Facture client :</strong>
-                            <Link
-                                v-if="bonLivraison.invoice_id"
-                                :href="`/admin/invoices/${bonLivraison.invoice_id}/consultation`"
-                            >
-                                {{ bonLivraison.invoice_matricule }}
-                            </Link>
-                            <span v-else>-</span>
-                        </div>
-                        <div class="mt-3 mb-3"><strong>Contrats concernes :</strong> {{ bonLivraison.contrats.join(', ') || '-' }}</div>
-                        <div class="mb-0"><strong>Fournisseurs concernes :</strong> {{ bonLivraison.fournisseurs.join(', ') || '-' }}</div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="col-lg-8 col-md-12">
-                <div class="card">
-                    <div class="header"><h2>Lignes de la facture</h2></div>
-                    <div class="body table-responsive">
-                        <table class="table table-bordered mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Fournisseur</th>
-                                    <th>Contrat</th>
-                                    <th>Code couleur</th>
-                                    <th>Categorie</th>
-                                    <th>Epaisseur</th>
-                                    <th>Prevue</th>
-                                    <th>Livree</th>
-                                    <th>Prix unitaire</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-if="!bonLivraison.lignes.length">
-                                    <td colspan="9" class="text-center">Aucune ligne.</td>
-                                </tr>
-                                <tr v-for="ligne in bonLivraison.lignes" :key="ligne.id">
-                                    <td>{{ ligne.supplier_name || '-' }}</td>
-                                    <td>{{ ligne.numero_contrat || '-' }}</td>
-                                    <td><span class="badge badge-info">{{ ligne.code_couleur || '-' }}</span></td>
-                                    <td>
-                                        <span class="badge" :class="categorieBadgeClass(ligne.categorie)">
-                                            {{ categorieLabel(ligne.categorie) }}
-                                        </span>
-                                    </td>
-                                    <td>{{ formatDecimal(ligne.epaisseur) }}</td>
-                                    <td>{{ ligne.quantite_prevue }}</td>
-                                    <td>{{ ligne.quantite_livree }}</td>
-                                    <td>{{ formatCurrency(ligne.prix_unitaire) }}</td>
-                                    <td>{{ formatCurrency(ligne.prix_total) }}</td>
-                                </tr>
-                            </tbody>
-                            <tfoot v-if="bonLivraison.lignes.length">
-                                <tr>
-                                    <th colspan="6" class="text-right">Totaux</th>
-                                    <th>{{ bonLivraison.quantite_totale_livree }}</th>
-                                    <th></th>
-                                    <th>{{ formatCurrency(bonLivraison.montant_total) }}</th>
-                                </tr>
-                            </tfoot>
-                        </table>
+                        <hr>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Code couleur</th>
+                                        <th>Categorie</th>
+                                        <th>Epaisseur</th>
+                                        <th>Qte livree</th>
+                                        <th>Prix unitaire</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-if="!bonLivraison.lignes.length">
+                                        <td colspan="6" class="text-center py-4">Aucune ligne.</td>
+                                    </tr>
+                                    <tr v-for="ligne in bonLivraison.lignes" :key="ligne.id">
+                                        <td>
+                                            <span class="badge badge-info">{{ ligne.code_couleur || '-' }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge" :class="categorieBadgeClass(ligne.categorie)">
+                                                {{ categorieLabel(ligne.categorie) }}
+                                            </span>
+                                        </td>
+                                        <td>{{ formatDecimal(ligne.epaisseur) }}</td>
+                                        <td>{{ ligne.quantite_livree }}</td>
+                                        <td>{{ formatCurrency(ligne.prix_unitaire) }}</td>
+                                        <td>{{ formatCurrency(ligne.prix_total) }}</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot v-if="bonLivraison.lignes.length">
+                                    <tr>
+                                        <td colspan="3">Total lignes : {{ bonLivraison.lignes_count }}</td>
+                                        <td>{{ bonLivraison.quantite_totale_livree }}</td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <hr>
+
+                        <div class="row clearfix">
+                            <div class="col-md-12 text-right">
+                                <h3 class="mb-0 m-t-10">
+                                    Total : {{ formatCurrency(bonLivraison.montant_total) }}
+                                </h3>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -112,6 +110,9 @@
 </template>
 
 <script setup>
+import axios from 'axios';
+import Swal from 'sweetalert2';
+import { Inertia } from '@inertiajs/inertia';
 import { Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
@@ -131,6 +132,47 @@ function generatePDF() {
     window.open(`/admin/planche-bons-livraison/${props.bonLivraison.id}/generate-pdf`, '_blank');
 }
 
+function editBonLivraison() {
+    Inertia.visit(`/admin/planche-bons-livraison/${props.bonLivraison.id}/edit`);
+}
+
+function cancelBonLivraison() {
+    const hasLinkedInvoice = Boolean(props.bonLivraison.invoice_matricule);
+    const confirmationText = hasLinkedInvoice
+        ? `Cette facture planche et la facture associee ${props.bonLivraison.invoice_matricule} seront annulees. Les quantites livrees seront remises en stock.`
+        : 'Les quantites livrees de cette facture seront remises en stock.';
+
+    Swal.fire({
+        title: 'Etes-vous sur ?',
+        text: confirmationText,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Oui, annuler',
+        cancelButtonText: 'Annuler',
+    }).then((result) => {
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        axios.delete(`/admin/planche-bons-livraison/${props.bonLivraison.id}`)
+            .then((response) => {
+                Swal.fire('Facture annulee', response.data?.message || 'La facture a ete annulee avec succes.', 'success')
+                    .then(() => {
+                        Inertia.visit(response.data?.data?.redirect_to || '/admin/planche-bons-livraison');
+                    });
+            })
+            .catch((error) => {
+                Swal.fire(
+                    'Erreur',
+                    error.response?.data?.message || error.response?.data?.error || 'Impossible d annuler cette facture.',
+                    'error'
+                );
+            });
+    });
+}
+
 function categorieBadgeClass(cat) {
     return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light';
 }
@@ -144,11 +186,11 @@ function formatDecimal(value) {
     if (value === null || value === undefined || value === '') {
         return '-';
     }
-
     return Number(value).toFixed(2);
 }
 
 function formatCurrency(value) {
-    return Number(value || 0).toFixed(2);
+    const num = Math.round(Number(value || 0));
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' CFA';
 }
 </script>

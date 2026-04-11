@@ -48,12 +48,10 @@
                             <tr>
                                 <th>Numero facture</th>
                                 <th>Client</th>
-                                <th>Date livraison</th>
+                                <th>Date</th>
                                 <th>Statut</th>
-                                <th>Facture</th>
-                                <th>Contrats</th>
-                                <th>Fournisseurs</th>
-                                <th>Lignes</th>
+                                
+                                
                                 <th>Qte totale</th>
                                 <th>Actions</th>
                             </tr>
@@ -63,7 +61,7 @@
                                 <td colspan="10" class="text-center py-4">Chargement...</td>
                             </tr>
                             <tr v-else-if="!bons.data.length">
-                                <td colspan="10" class="text-center py-4">Aucune facture enregistree.</td>
+                                <td colspan="6" class="text-center py-4">Aucune facture enregistree.</td>
                             </tr>
                             <tr v-for="bon in bons.data" :key="bon.id">
                                 <td>{{ bon.numero_bl }}</td>
@@ -74,19 +72,8 @@
                                         {{ bon.statut }}
                                     </span>
                                 </td>
-                                <td>
-                                    <Link
-                                        v-if="bon.invoice_id"
-                                        :href="`/admin/invoices/${bon.invoice_id}/consultation`"
-                                        class="badge badge-info"
-                                    >
-                                        {{ bon.invoice_matricule }}
-                                    </Link>
-                                    <span v-else>-</span>
-                                </td>
-                                <td>{{ bon.contrats.join(', ') || '-' }}</td>
-                                <td>{{ bon.fournisseurs.join(', ') || '-' }}</td>
-                                <td>{{ bon.lignes_count }}</td>
+                                
+                                
                                 <td>{{ bon.quantite_totale_livree }}</td>
                                 <td>
                                     <Link :href="`/admin/planche-bons-livraison/${bon.id}`" class="btn btn-info btn-sm mr-1">

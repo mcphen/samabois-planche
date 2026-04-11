@@ -1,11 +1,11 @@
 <template>
-    <Head :title="`Nouvelle facture planche | ${appName}`" />
+    <Head :title="`Modifier facture ${bonLivraison.numero_bl} | ${appName}`" />
 
     <AuthenticatedLayout>
-        <BreadcrumbsAndActions :title="'Nouvelle facture planche'" :breadcrumbs="breadcrumbs">
+        <BreadcrumbsAndActions :title="`Modifier facture ${bonLivraison.numero_bl}`" :breadcrumbs="breadcrumbs">
             <template #action>
-                <Link class="btn btn-primary" href="/admin/planche-bons-livraison">
-                    <i class="fa fa-arrow-left"></i> Retour a la liste
+                <Link class="btn btn-primary" :href="`/admin/planche-bons-livraison/${bonLivraison.id}`">
+                    <i class="fa fa-arrow-left"></i> Retour a la consultation
                 </Link>
             </template>
         </BreadcrumbsAndActions>
@@ -258,7 +258,7 @@
                                 <tr v-if="!validLignes.length">
                                     <td colspan="8" class="text-center py-4">Aucune ligne complete.</td>
                                 </tr>
-                                <tr v-for="(ligne, index) in validLignes" :key="ligne.planche_detail_id">
+                                <tr v-for="(ligne, index) in validLignes" :key="`${ligne.planche_detail_id}-${index}`">
                                     <td class="align-middle">
                                         <span class="badge badge-info">{{ ligne.code_couleur || '-' }}</span>
                                     </td>
@@ -311,10 +311,10 @@
                     Retour a la selection
                 </button>
                 <button type="button" class="btn btn-success ml-2" :disabled="submitting || !validLignes.length" @click="submitForm">
-                    <span v-if="submitting">Enregistrement...</span>
-                    <span v-else>Enregistrer la facture</span>
+                    <span v-if="submitting">Mise a jour...</span>
+                    <span v-else>Mettre a jour la facture</span>
                 </button>
-                <Link href="/admin/planche-bons-livraison" class="btn btn-secondary ml-2">
+                <Link :href="`/admin/planche-bons-livraison/${bonLivraison.id}`" class="btn btn-secondary ml-2">
                     Annuler
                 </Link>
             </div>
@@ -369,6 +369,7 @@ import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
 import PlancheColorInput from '@/Components/PlancheColorInput.vue';
 
 const props = defineProps({
+    bonLivraison: { type: Object, required: true },
     suppliers: { type: Array, default: () => [] },
     clients: { type: Array, default: () => [] },
     epaisseurs: { type: Array, default: () => [] },
@@ -379,7 +380,8 @@ const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
     { label: 'Tableau de bord', link: '/dashboard', icon: 'fa fa-dashboard' },
     { label: 'Factures planche', link: '/admin/planche-bons-livraison', icon: 'fa fa-truck' },
-    { label: 'Nouvelle facture' },
+    { label: props.bonLivraison.numero_bl, link: `/admin/planche-bons-livraison/${props.bonLivraison.id}` },
+    { label: 'Modifier' },
 ];
 
 const currentStep = ref(1);
@@ -394,9 +396,9 @@ const modalError = ref('');
 const newClient = reactive({ name: '', address: '', phone: '', email: '' });
 
 const form = reactive({
-    client_id: '',
-    date_livraison: new Date().toISOString().slice(0, 10),
-    statut: 'valide',
+    client_id: props.bonLivraison.client_id ? String(props.bonLivraison.client_id) : '',
+    date_livraison: props.bonLivraison.date_livraison || new Date().toISOString().slice(0, 10),
+    statut: props.bonLivraison.statut || 'valide',
 });
 
 // --- Lignes (step 1) ---
@@ -417,7 +419,62 @@ function createEmptyLigne() {
     };
 }
 
-const lignes = ref([createEmptyLigne()]);
+function buildCategoriesForCode(codeCouleur) {
+    const seen = new Set();
+
+    return props.availableDetails
+        .filter((detail) => detail.code_couleur === codeCouleur)
+        .map((detail) => detail.categorie)
+        .filter((categorie) => categorie && !seen.has(categorie) && seen.add(categorie));
+}
+
+function buildEpaisseurOptions(codeCouleur, categorie) {
+    const seen = new Set();
+
+    return props.availableDetails
+        .filter((detail) => detail.code_couleur === codeCouleur && detail.categorie === categorie)
+        .filter((detail) => {
+            const key = String(detail.epaisseur);
+
+            if (seen.has(key)) return false;
+
+            seen.add(key);
+            return true;
+        })
+        .map((detail) => ({
+            detail_id: detail.id,
+            epaisseur: detail.epaisseur,
+            quantite_disponible: detail.quantite_disponible,
+        }));
+}
+
+function buildInitialLignes() {
+    if (!props.bonLivraison.lignes?.length) {
+        return [createEmptyLigne()];
+    }
+
+    return props.bonLivraison.lignes.map((ligne) => {
+        const categoriesDisponibles = buildCategoriesForCode(ligne.code_couleur);
+        const epaisseurOptions = buildEpaisseurOptions(ligne.code_couleur, ligne.categorie);
+        const selectedOption = epaisseurOptions.find((option) => option.detail_id === ligne.detail_id);
+
+        return {
+            code_couleur: ligne.code_couleur || '',
+            categoriesDisponibles,
+            loadingCategories: false,
+            categorie: ligne.categorie || '',
+            epaisseurOptions,
+            loadingEpaisseurs: false,
+            epaisseur: ligne.epaisseur !== null && ligne.epaisseur !== undefined ? String(ligne.epaisseur) : '',
+            planche_detail_id: ligne.detail_id,
+            quantite_disponible: selectedOption?.quantite_disponible ?? ligne.quantite_prevue ?? null,
+            quantite_livree: Number(ligne.quantite_livree || 1),
+            prix_unitaire: Number(ligne.prix_unitaire || 0),
+        };
+    });
+}
+
+const lignes = ref(buildInitialLignes());
 
 const validLignes = computed(() =>
     lignes.value.filter((l) => l.planche_detail_id !== null)
@@ -460,7 +517,10 @@ async function fetchCategories(index) {
 
     try {
         const response = await axios.get('/admin/planche-bons-livraison/details-disponibles', {
-            params: { code_couleur: ligne.code_couleur },
+            params: {
+                code_couleur: ligne.code_couleur,
+                exclude_bon_livraison_id: props.bonLivraison.id,
+            },
         });
         const details = response.data || [];
         const seen = new Set();
@@ -497,7 +557,11 @@ async function fetchEpaisseurs(index) {
 
     try {
         const response = await axios.get('/admin/planche-bons-livraison/details-disponibles', {
-            params: { code_couleur: ligne.code_couleur, categorie: ligne.categorie },
+            params: {
+                code_couleur: ligne.code_couleur,
+                categorie: ligne.categorie,
+                exclude_bon_livraison_id: props.bonLivraison.id,
+            },
         });
         const details = response.data || [];
         const seen = new Set();
@@ -680,23 +744,24 @@ function submitForm() {
     errors.value = {};
     formError.value = '';
 
-    axios.post('/admin/planche-bons-livraison/store', {
+    axios.put(`/admin/planche-bons-livraison/${props.bonLivraison.id}`, {
         client_id: form.client_id ? Number(form.client_id) : null,
         date_livraison: form.date_livraison,
+        statut: form.statut,
         lignes: validLignes.value.map((ligne) => ({
             planche_detail_id: ligne.planche_detail_id,
             quantite_livree: Number(ligne.quantite_livree),
             prix_unitaire: Number(ligne.prix_unitaire || 0),
         })),
     }).then((response) => {
-        Inertia.visit(response.data?.data?.redirect_to || '/admin/planche-bons-livraison');
+        Inertia.visit(response.data?.data?.redirect_to || `/admin/planche-bons-livraison/${props.bonLivraison.id}`);
     }).catch((error) => {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors || {};
             formError.value = error.response.data.message || 'Veuillez corriger les erreurs du formulaire.';
             return;
         }
-        formError.value = 'Une erreur est survenue pendant l enregistrement.';
+        formError.value = 'Une erreur est survenue pendant la mise a jour.';
     }).finally(() => {
         submitting.value = false;
     });

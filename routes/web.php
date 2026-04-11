@@ -185,6 +185,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/create', [PlancheBonLivraisonController::class, 'create'])->name('planche-bons-livraison.create');
             Route::get('/listes', [PlancheBonLivraisonController::class, 'getBonsLivraison'])->name('planche-bons-livraison.list');
             Route::get('/details-disponibles', [PlancheBonLivraisonController::class, 'getAvailableDetails'])->name('planche-bons-livraison.available-details');
+            Route::get('/{plancheBonLivraison}/edit', [PlancheBonLivraisonController::class, 'edit'])->name('planche-bons-livraison.edit');
             Route::get('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'show'])->name('planche-bons-livraison.show');
             Route::get('/{plancheBonLivraison}/generate-pdf', [PlancheBonLivraisonController::class, 'generatePDF'])->name('planche-bons-livraison.generatePDF');
             Route::post('/store', [PlancheBonLivraisonController::class, 'store'])->name('planche-bons-livraison.store');

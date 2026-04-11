@@ -36,4 +36,5 @@ class PlancheBonLivraison extends Model
     {
         return $this->hasOne(Invoice::class, 'planche_bon_livraison_id');
     }
+
 }
