@@ -735,6 +735,13 @@ function deleteLine(row) {
                 }
 
                 reloadPage();
+            })
+            .catch((error) => {
+                Swal.fire(
+                    'Erreur',
+                    error.response?.data?.message || 'Impossible de supprimer cette ligne.',
+                    'error',
+                );
             });
     });
 }

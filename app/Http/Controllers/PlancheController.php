@@ -440,6 +440,12 @@ class PlancheController extends Controller
     {
         $this->ensureDetailBelongsToContract($planche, $detail);
 
+        if ($detail->bonLivraisonLignes()->exists()) {
+            return response()->json([
+                'message' => 'Suppression impossible : ce detail est deja present dans un bon de livraison.',
+            ], 422);
+        }
+
         $result = DB::transaction(function () use ($planche, $detail) {
             $plancheDetail = $detail->planche;
             $detail->delete();

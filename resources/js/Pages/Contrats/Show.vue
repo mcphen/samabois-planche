@@ -19,8 +19,7 @@
         </BreadcrumbsAndActions>
 
         <div class="row clearfix row-deck">
-            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card primary-bg"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_planches || 0 }}</h3><span>Planches</span></div></div></div></div>
-            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card secondary-bg"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_details || 0 }}</h3><span>Lignes</span></div></div></div></div>
+            
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-info"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_prevue || 0 }}</h3><span>Feuilles prevues</span></div></div></div></div>
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-success"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_disponible || 0 }}</h3><span>Disponibles</span></div></div></div></div>
         </div>
@@ -36,7 +35,6 @@
                             <div class="col-md-6 mb-3"><strong>Feuilles prevues :</strong> {{ contrat.total_quantite_prevue || 0 }}</div>
                             <div class="col-md-6 mb-3"><strong>Feuilles livrees :</strong> {{ contrat.total_quantite_livree || 0 }}</div>
                             <div class="col-md-6 mb-3"><strong>Feuilles disponibles :</strong> {{ contrat.total_quantite_disponible || 0 }}</div>
-                            <div class="col-md-6 mb-3"><strong>Planches :</strong> {{ contrat.total_planches || 0 }}</div>
                         </div>
                         <div class="border-top pt-3" v-if="contrat.supplier?.phone || contrat.supplier?.email || contrat.supplier?.address">
                             <h6 class="mb-3">Contact fournisseur</h6>
@@ -48,47 +46,41 @@
                 </div>
             </div>
 
-            <div class="col-lg-6 col-md-12" v-if="activePlanche">
-                <div class="card">
-                    <div class="header"><h2>Planche selectionnee</h2></div>
-                    <div class="body">
-                        <div class="mb-3"><strong>ID planche :</strong> #{{ activePlanche.id }}</div>
-                        <div class="mb-3"><strong>Code couleur :</strong> <span class="badge badge-info ml-2">{{ activePlanche.code_couleur || '-' }}</span></div>
-                        <div class="mb-3">
-                            <strong>Categorie :</strong>
-                            <span class="badge ml-2" :class="categorieBadgeClass(activePlanche.categorie)">{{ categorieLabel(activePlanche.categorie) }}</span>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-4 mb-3"><div class="border rounded p-3 text-center"><div class="font-weight-bold" style="font-size: 18px;">{{ activePlanche.details?.length || 0 }}</div><small class="text-muted">Lignes</small></div></div>
-                            <div class="col-md-4 mb-3"><div class="border rounded p-3 text-center"><div class="font-weight-bold" style="font-size: 18px;">{{ activePlanche.total_quantite_prevue || 0 }}</div><small class="text-muted">Prevues</small></div></div>
-                            <div class="col-md-4 mb-3"><div class="border rounded p-3 text-center"><div class="font-weight-bold" style="font-size: 18px;">{{ activePlanche.total_quantite_disponible || 0 }}</div><small class="text-muted">Disponibles</small></div></div>
-                        </div>
-                        <div class="mt-2"><Link :href="`/admin/planches/${activePlanche.id}`" class="btn btn-info btn-sm">Ouvrir la page planche</Link></div>
-                    </div>
-                </div>
-            </div>
+        
         </div>
 
         <div class="card">
-            <div class="header"><h2>Planches du contrat</h2></div>
+            <div class="header"><h2>Details du contrat</h2></div>
             <div class="body table-responsive">
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Planche</th><th>Code couleur</th><th>Categorie</th><th>Prevues</th><th>Livrees</th><th>Disponibles</th><th>Actions</th>
+                            <th>Code couleur</th><th>Categorie</th><th>Epaisseur</th><th>Prevues</th><th>Livrees</th><th>Disponibles</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="!contrat.planches?.length"><td colspan="7" class="text-center py-4">Aucune planche pour ce contrat.</td></tr>
-                        <tr v-for="planche in contrat.planches" :key="planche.id" :class="{ 'table-primary': planche.id === activePlanche?.id }">
-                            <td><span v-if="planche.id === activePlanche?.id" class="badge badge-primary mr-2">Selectionnee</span>#{{ planche.id }}</td>
-                            <td><span class="badge badge-info">{{ planche.code_couleur || '-' }}</span></td>
-                            <td><span class="badge" :class="categorieBadgeClass(planche.categorie)">{{ categorieLabel(planche.categorie) }}</span></td>
-                            <td>{{ planche.total_quantite_prevue || 0 }}</td>
-                            <td>{{ planche.total_quantite_livree || 0 }}</td>
-                            <td class="font-weight-bold">{{ planche.total_quantite_disponible || 0 }}</td>
+                        <tr v-if="!contractDetails.length"><td colspan="8" class="text-center py-4">Aucun detail pour ce contrat.</td></tr>
+                        <tr v-for="detail in contractDetails" :key="detail.id">
+                            
                             <td>
-                                <button type="button" class="btn btn-info btn-sm" @click="openPlancheModal(planche)">Voir details</button>
+                                <div class="d-flex align-items-center" style="gap:8px;">
+                                    <div v-if="detail.image_url"  class="border rounded d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:#fff;overflow:hidden;">
+                                        <img :src="detail.image_url" alt="Apercu couleur" style="width:100%;height:100%;object-fit:cover;" />
+                                        
+                                    </div>
+                                    <span class="badge badge-info">{{ detail.code_couleur || '-' }}</span>
+                                </div>
+                            </td>
+                            <td><span class="badge" :class="categorieBadgeClass(detail.categorie)">{{ categorieLabel(detail.categorie) }}</span></td>
+                            <td>{{ formatDecimal(detail.epaisseur) }}</td>
+                            <td>{{ detail.quantite_prevue || 0 }}</td>
+                            <td>{{ detail.total_quantite_livree || 0 }}</td>
+                            <td class="font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
+                            <td>
+                                <div class="d-flex flex-wrap" style="gap:6px;">
+                                    <button type="button" class="btn btn-warning btn-sm" @click="openDetailEditModal(detail)">Modifier</button>
+                                    <button type="button" class="btn btn-danger btn-sm" @click="deleteDetail(detail)">Supprimer</button>
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -221,43 +213,69 @@
                     <button type="button" class="btn btn-success btn-sm" :disabled="submittingEdit" @click="submitEditForm">
                         {{ submittingEdit ? 'Mise a jour...' : 'Enregistrer' }}
                     </button>
-                    <button type="button" class="btn btn-secondary btn-sm" @click="closeEditModal">Annuler</button>
+                    <button type="button" class="btn btn-danger btn-sm" @click="closeEditModal">Annuler</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div v-if="modalPlanche" class="modal d-block" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
+    <div v-if="showDetailEditModal" class="modal d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Planche #{{ modalPlanche.id }} - {{ modalPlanche.code_couleur || '-' }}</h5>
-                    <button type="button" class="close" @click="closePlancheModal">&times;</button>
+                    <h5 class="modal-title">Modifier le detail</h5>
+                    <button type="button" class="close" @click="closeDetailEditModal">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <strong>Categorie :</strong>
-                        <span class="badge ml-2" :class="categorieBadgeClass(modalPlanche.categorie)">{{ categorieLabel(modalPlanche.categorie) }}</span>
+                    <div v-if="detailEditFormError" class="alert alert-danger mb-3">
+                        <i class="fa fa-exclamation-circle mr-2"></i>{{ detailEditFormError }}
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-bordered mb-0">
-                            <thead><tr><th>ID detail</th><th>Categorie</th><th>Epaisseur</th><th>Prevues</th><th>Livrees</th><th>Disponibles</th></tr></thead>
-                            <tbody>
-                                <tr v-if="!modalPlanche.details?.length"><td colspan="6" class="text-center">Aucun detail pour cette planche.</td></tr>
-                                <tr v-for="detail in modalPlanche.details" :key="detail.id">
-                                    <td>#{{ detail.id }}</td>
-                                    <td><span class="badge" :class="categorieBadgeClass(detail.categorie)">{{ categorieLabel(detail.categorie) }}</span></td>
-                                    <td>{{ formatDecimal(detail.epaisseur) }} mm</td>
-                                    <td>{{ detail.quantite_prevue || 0 }}</td>
-                                    <td>{{ detail.total_quantite_livree || 0 }}</td>
-                                    <td class="font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="form-group">
+                        <label>Code couleur *</label>
+                        <PlancheColorInput
+                            :model-value="detailEditForm.code_couleur"
+                            @update:modelValue="updateDetailFormColor($event)"
+                            @select="selectDetailColorSuggestion"
+                        />
+                        <small v-if="detailEditErrors.code_couleur" class="text-danger d-block mt-1">{{ detailEditErrors.code_couleur[0] }}</small>
+                    </div>
+                    <div v-if="detailEditForm.existing_image_url" class="form-group text-center">
+                        <img
+                            :src="detailEditForm.existing_image_url"
+                            alt="Apercu couleur"
+                            class="img-fluid rounded border"
+                            style="max-height:160px;object-fit:cover;"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label>Categorie *</label>
+                        <select v-model="detailEditForm.categorie" class="form-control">
+                            <option value="">Selectionner...</option>
+                            <option value="mate">Mate</option>
+                            <option value="semi_brillant">Semi-brillant</option>
+                            <option value="brillant">Brillant</option>
+                        </select>
+                        <small v-if="detailEditErrors.categorie" class="text-danger d-block mt-1">{{ detailEditErrors.categorie[0] }}</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Epaisseur *</label>
+                        <select v-model="detailEditForm.epaisseur" class="form-control">
+                            <option value="">Selectionner...</option>
+                            <option v-for="epaisseurOption in epaisseurOptions" :key="epaisseurOption.id" :value="epaisseurOption.value">{{ epaisseurOption.label }}</option>
+                        </select>
+                        <small v-if="detailEditErrors.epaisseur" class="text-danger d-block mt-1">{{ detailEditErrors.epaisseur[0] }}</small>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label>Quantite prevue *</label>
+                        <input v-model="detailEditForm.quantite_prevue" type="number" min="1" step="1" class="form-control" />
+                        <small v-if="detailEditErrors.quantite_prevue" class="text-danger d-block mt-1">{{ detailEditErrors.quantite_prevue[0] }}</small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" @click="closePlancheModal">Fermer</button>
+                    <button type="button" class="btn btn-success btn-sm" :disabled="submittingDetailEdit" @click="submitDetailEditForm">
+                        {{ submittingDetailEdit ? 'Mise a jour...' : 'Enregistrer' }}
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm" @click="closeDetailEditModal">Annuler</button>
                 </div>
             </div>
         </div>
@@ -266,6 +284,7 @@
 
 <script setup>
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { Inertia } from '@inertiajs/inertia';
@@ -275,7 +294,6 @@ import PlancheColorInput from '@/Components/PlancheColorInput.vue';
 
 const props = defineProps({
     contrat: { type: Object, required: true },
-    active_planche_id: { type: Number, default: null },
     epaisseurs: { type: Array, default: () => [] },
     suppliers: { type: Array, default: () => [] },
 });
@@ -287,7 +305,6 @@ const breadcrumbs = [
     { label: `Contrat ${props.contrat.numero}` },
 ];
 
-const modalPlanche = ref(null);
 const showEditModal = ref(false);
 const submittingEdit = ref(false);
 const editFormError = ref('');
@@ -296,13 +313,38 @@ const showCreateModal = ref(false);
 const submittingCreate = ref(false);
 const createFormError = ref('');
 const createErrors = ref({});
-const activePlanche = computed(() => props.contrat.planches.find((item) => item.id === props.active_planche_id) || props.contrat.planches[0] || null);
+const showDetailEditModal = ref(false);
+const submittingDetailEdit = ref(false);
+const detailEditFormError = ref('');
+const detailEditErrors = ref({});
+const selectedDetail = ref(null);
 const epaisseurOptions = computed(() => props.epaisseurs.map((item) => {
     const value = extractEpaisseurValue(item);
     return value ? { id: item.id, label: item.intitule, value } : null;
 }).filter(Boolean));
 const createForm = ref(buildInitialCreateForm());
 const editForm = ref(buildInitialEditForm());
+const detailEditForm = ref(buildInitialDetailEditForm());
+const contractDetails = computed(() => (props.contrat.planches || [])
+    .flatMap((planche) => (planche.details || []).map((detail) => ({
+        id: detail.id,
+        planche_id: planche.id,
+        code_couleur: planche.code_couleur || detail.couleur?.code || '',
+        code_couleur_from_selection: planche.code_couleur || detail.couleur?.code || '',
+        existing_image_url: detail.couleur?.image_url || '',
+        image_url: detail.couleur?.image_url || '',
+        categorie: detail.categorie,
+        epaisseur: normalizeEpaisseurValue(detail.epaisseur),
+        quantite_prevue: detail.quantite_prevue,
+        total_quantite_livree: detail.total_quantite_livree || 0,
+        quantite_disponible: detail.quantite_disponible || 0,
+    })))
+    .sort((a, b) => {
+        const keyA = `${a.code_couleur || ''}|${a.categorie || ''}`;
+        const keyB = `${b.code_couleur || ''}|${b.categorie || ''}`;
+        if (keyA === keyB) return Number(a.epaisseur || 0) - Number(b.epaisseur || 0);
+        return keyA.localeCompare(keyB);
+    }));
 
 function buildInitialCreateForm() {
     return {
@@ -319,6 +361,17 @@ function buildInitialEditForm() {
     };
 }
 
+function buildInitialDetailEditForm() {
+    return {
+        code_couleur: '',
+        code_couleur_from_selection: '',
+        existing_image_url: '',
+        categorie: '',
+        epaisseur: '',
+        quantite_prevue: '',
+    };
+}
+
 function createRow(defaults = {}) {
     return {
         localId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -326,7 +379,7 @@ function createRow(defaults = {}) {
         code_couleur_from_selection: defaults.code_couleur_from_selection || '',
         existing_image_url: defaults.existing_image_url || '',
         categorie: defaults.categorie || '',
-        epaisseur: defaults.epaisseur || '',
+        epaisseur: normalizeEpaisseurValue(defaults.epaisseur),
         quantite_prevue: defaults.quantite_prevue || '',
     };
 }
@@ -343,6 +396,13 @@ function resetEditForm() {
     editFormError.value = '';
 }
 
+function resetDetailEditForm() {
+    detailEditForm.value = buildInitialDetailEditForm();
+    detailEditErrors.value = {};
+    detailEditFormError.value = '';
+    selectedDetail.value = null;
+}
+
 function openEditModal() { resetEditForm(); showEditModal.value = true; }
 function closeEditModal() { showEditModal.value = false; resetEditForm(); }
 function openCreateModal() { resetCreateForm(); showCreateModal.value = true; }
@@ -353,9 +413,15 @@ function normalizeCode(value) { return String(value || '').trim().toLowerCase();
 function extractEpaisseurValue(item) {
     for (const source of [item?.slug, item?.intitule]) {
         const match = String(source || '').replace(',', '.').match(/(\d+(?:\.\d+)?)/);
-        if (match) return match[1];
+        if (match) return normalizeEpaisseurValue(match[1]);
     }
     return '';
+}
+function normalizeEpaisseurValue(value) {
+    const normalized = String(value ?? '').trim().replace(',', '.');
+    if (!normalized) return '';
+    const numeric = Number(normalized);
+    return Number.isFinite(numeric) ? String(numeric) : normalized;
 }
 function updateRowColor(row, value) {
     row.code_couleur = value;
@@ -365,6 +431,15 @@ function selectColorSuggestion(row, suggestion) {
     row.code_couleur = suggestion?.code || row.code_couleur;
     row.code_couleur_from_selection = suggestion?.code || '';
     row.existing_image_url = suggestion?.image_url || '';
+}
+function updateDetailFormColor(value) {
+    detailEditForm.value.code_couleur = value;
+    if (normalizeCode(value) !== normalizeCode(detailEditForm.value.code_couleur_from_selection)) detailEditForm.value.existing_image_url = '';
+}
+function selectDetailColorSuggestion(suggestion) {
+    detailEditForm.value.code_couleur = suggestion?.code || detailEditForm.value.code_couleur;
+    detailEditForm.value.code_couleur_from_selection = suggestion?.code || '';
+    detailEditForm.value.existing_image_url = suggestion?.image_url || '';
 }
 function buildPayload() {
     const groupes = [];
@@ -458,9 +533,79 @@ function submitEditForm() {
         })
         .finally(() => { submittingEdit.value = false; });
 }
+function openDetailEditModal(detail) {
+    selectedDetail.value = detail;
+    detailEditErrors.value = {};
+    detailEditFormError.value = '';
+    detailEditForm.value = {
+        code_couleur: detail.code_couleur || '',
+        code_couleur_from_selection: detail.code_couleur || '',
+        existing_image_url: detail.image_url || '',
+        categorie: detail.categorie || '',
+        epaisseur: normalizeEpaisseurValue(detail.epaisseur),
+        quantite_prevue: detail.quantite_prevue || '',
+    };
+    showDetailEditModal.value = true;
+}
+function closeDetailEditModal() {
+    showDetailEditModal.value = false;
+    resetDetailEditForm();
+}
+function reloadContratPage() {
+    Inertia.visit(`/admin/contrats/${props.contrat.id}`, { preserveScroll: true });
+}
+function submitDetailEditForm() {
+    if (!selectedDetail.value) return;
+    submittingDetailEdit.value = true;
+    detailEditErrors.value = {};
+    detailEditFormError.value = '';
+
+    axios.put(`/admin/planches/${selectedDetail.value.planche_id}/lignes/${selectedDetail.value.id}`, {
+        code_couleur: detailEditForm.value.code_couleur,
+        categorie: detailEditForm.value.categorie,
+        epaisseur: detailEditForm.value.epaisseur,
+        quantite_prevue: detailEditForm.value.quantite_prevue,
+    })
+        .then(() => {
+            closeDetailEditModal();
+            reloadContratPage();
+        })
+        .catch((error) => {
+            if (error.response?.status === 422) {
+                detailEditErrors.value = error.response.data.errors || {};
+                detailEditFormError.value = error.response.data.message || 'Veuillez corriger les erreurs du formulaire.';
+                return;
+            }
+
+            detailEditFormError.value = error.response?.data?.message || 'Une erreur est survenue pendant la mise a jour.';
+        })
+        .finally(() => { submittingDetailEdit.value = false; });
+}
+function deleteDetail(detail) {
+    Swal.fire({
+        title: 'Etes-vous sur ?',
+        text: 'Cette ligne sera supprimee.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Oui',
+        cancelButtonText: 'Annuler',
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+
+        axios.delete(`/admin/planches/${detail.planche_id}/lignes/${detail.id}`)
+            .then(() => { reloadContratPage(); })
+            .catch((error) => {
+                Swal.fire(
+                    'Erreur',
+                    error.response?.data?.message || 'Impossible de supprimer cette ligne.',
+                    'error',
+                );
+            });
+    });
+}
 function categorieLabel(cat) { return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-'; }
 function categorieBadgeClass(cat) { return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light'; }
 function formatDecimal(value) { return value === null || value === undefined || value === '' ? '-' : Number(value).toFixed(2); }
-function openPlancheModal(planche) { modalPlanche.value = planche; }
-function closePlancheModal() { modalPlanche.value = null; }
 </script>

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Inertia\Inertia;
 
 class PlancheBonLivraisonController extends Controller
@@ -33,6 +34,15 @@ class PlancheBonLivraisonController extends Controller
             'epaisseurs' => Epaisseur::query()->orderBy('intitule')->get(['id', 'intitule', 'slug']),
             'availableDetails' => [],
         ]);
+    }
+
+    public function generatePDF(PlancheBonLivraison $plancheBonLivraison)
+    {
+        $plancheBonLivraison->load($this->bonRelations());
+
+        $pdf = PDF::loadView('planche-bons-livraison.pdf', ['bon' => $plancheBonLivraison]);
+
+        return $pdf->stream("bon-livraison_{$plancheBonLivraison->numero_bl}.pdf");
     }
 
     public function show(PlancheBonLivraison $plancheBonLivraison)

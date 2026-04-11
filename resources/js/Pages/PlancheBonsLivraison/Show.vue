@@ -7,13 +7,10 @@
                 <Link class="btn btn-primary mr-2" href="/admin/planche-bons-livraison">
                     <i class="fa fa-arrow-left"></i> Retour a la liste
                 </Link>
-                <Link
-                    v-if="bonLivraison.invoice_id"
-                    class="btn btn-info mr-2"
-                    :href="`/admin/invoices/${bonLivraison.invoice_id}/consultation`"
-                >
-                    Voir facture
-                </Link>
+               
+                <button type="button" class="btn btn-secondary" @click="generatePDF">
+                    <i class="fa fa-print"></i> Imprimer
+                </button>
             </template>
         </BreadcrumbsAndActions>
 
@@ -129,6 +126,10 @@ const breadcrumbs = [
     { label: 'Factures planche', link: '/admin/planche-bons-livraison', icon: 'fa fa-truck' },
     { label: props.bonLivraison.numero_bl },
 ];
+
+function generatePDF() {
+    window.open(`/admin/planche-bons-livraison/${props.bonLivraison.id}/generate-pdf`, '_blank');
+}
 
 function categorieBadgeClass(cat) {
     return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light';

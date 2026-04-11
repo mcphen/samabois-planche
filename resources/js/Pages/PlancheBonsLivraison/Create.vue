@@ -12,34 +12,25 @@
 
         <div class="card mb-4">
             <div class="body">
-                <div class="d-flex flex-wrap justify-content-between align-items-center" style="gap: 12px;">
-                    <div class="d-flex flex-wrap" style="gap: 10px;">
-                        <button
-                            type="button"
-                            class="btn"
-                            :class="currentStep === 1 ? 'btn-primary' : 'btn-outline-primary'"
-                            @click="goToStep(1)"
-                        >
-                            1. Recherche et panier
-                        </button>
-                        <button
-                            type="button"
-                            class="btn"
-                            :class="currentStep === 2 ? 'btn-primary' : 'btn-outline-primary'"
-                            :disabled="!form.lignes.length"
-                            @click="goToStep(2)"
-                        >
-                            2. Lignes et validation
-                        </button>
-                    </div>
-
-                    <div class="text-muted small">
-                        {{ selectedCount }} ligne(s) selectionnee(s)
-                    </div>
-                </div>
-
-                <div class="mt-3 text-muted small">
-                    Recherchez les details, ajoutez-les au panier, puis passez a la saisie des quantites et des prix.
+                <div class="d-flex flex-wrap" style="gap: 10px;">
+                    <button
+                        type="button"
+                        class="btn"
+                        :class="currentStep === 1 ? 'btn-primary' : 'btn-outline-primary'"
+                        @click="goToStep(1)"
+                    >
+                        1. Recherche et selection
+                    </button>
+                    <button
+                        type="button"
+                        class="btn"
+                        :class="currentStep === 2 ? 'btn-primary' : 'btn-outline-primary'"
+                        :disabled="!form.lignes.length"
+                        @click="goToStep(2)"
+                    >
+                        2. Lignes et validation
+                        <span v-if="selectedCount > 0">({{ selectedCount }})</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -81,182 +72,115 @@
         </div>
 
         <template v-if="currentStep === 1">
-            <div class="row">
-                <div class="col-lg-8">
-                    <div class="card mb-4">
-                        <div class="header">
-                            <h2>Etape 1 - Rechercher les details disponibles</h2>
+            <div class="card mb-4">
+                <div class="header">
+                    <h2>Etape 1 - Rechercher les details disponibles</h2>
+                </div>
+                <div class="body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 col-lg-3">
+                            <label class="small font-weight-bold">Code couleur</label>
+                            <PlancheColorInput
+                                :model-value="filters.code_couleur"
+                                placeholder="Cliquez puis tapez..."
+                                @update:modelValue="filters.code_couleur = $event"
+                            />
                         </div>
-                        <div class="body">
-                            <div class="row mb-3">
-                                <div class="col-md-4 col-lg-3">
-                                    <label class="small font-weight-bold">Fournisseur</label>
-                                    <select v-model="filters.supplier_id" class="form-control">
-                                        <option value="">Tous</option>
-                                        <option v-for="supplier in suppliers" :key="supplier.id" :value="String(supplier.id)">
-                                            {{ supplier.name }}
-                                        </option>
-                                    </select>
-                                </div>
 
-                                <div class="col-md-4 col-lg-3">
-                                    <label class="small font-weight-bold">Contrat</label>
-                                    <input v-model="filters.numero_contrat" type="text" class="form-control" />
-                                </div>
+                        <div class="col-md-4 col-lg-3">
+                            <label class="small font-weight-bold">Categorie</label>
+                            <select v-model="filters.categorie" class="form-control">
+                                <option value="">Toutes</option>
+                                <option value="mate">Mate</option>
+                                <option value="semi_brillant">Semi-brillant</option>
+                                <option value="brillant">Brillant</option>
+                            </select>
+                        </div>
 
-                                <div class="col-md-4 col-lg-3">
-                                    <label class="small font-weight-bold">Code couleur</label>
-                                    <PlancheColorInput
-                                        :model-value="filters.code_couleur"
-                                        placeholder="Cliquez puis tapez..."
-                                        @update:modelValue="filters.code_couleur = $event"
-                                    />
-                                </div>
+                        <div class="col-md-4 col-lg-3">
+                            <label class="small font-weight-bold">Epaisseur</label>
+                            <select v-model="filters.epaisseur" class="form-control">
+                                <option value="">Toutes</option>
+                                <option
+                                    v-for="epaisseurOption in epaisseurOptions"
+                                    :key="epaisseurOption.id"
+                                    :value="epaisseurOption.value"
+                                >
+                                    {{ epaisseurOption.label }}
+                                </option>
+                            </select>
+                        </div>
 
-                                <div class="col-md-4 col-lg-3">
-                                    <label class="small font-weight-bold">Categorie</label>
-                                    <select v-model="filters.categorie" class="form-control">
-                                        <option value="">Toutes</option>
-                                        <option value="mate">Mate</option>
-                                        <option value="semi_brillant">Semi-brillant</option>
-                                        <option value="brillant">Brillant</option>
-                                    </select>
-                                </div>
-
-                                <div class="col-md-4 col-lg-3 mt-3">
-                                    <label class="small font-weight-bold">Epaisseur</label>
-                                    <select v-model="filters.epaisseur" class="form-control">
-                                        <option value="">Toutes</option>
-                                        <option
-                                            v-for="epaisseurOption in epaisseurOptions"
-                                            :key="epaisseurOption.id"
-                                            :value="epaisseurOption.value"
-                                        >
-                                            {{ epaisseurOption.label }}
-                                        </option>
-                                    </select>
-                                </div>
-
-                                <div class="col-md-8 col-lg-9 mt-3 d-flex align-items-end justify-content-end flex-wrap" style="gap: 8px;">
-                                    <button type="button" class="btn btn-outline-secondary" @click="resetFilters">Reinitialiser</button>
-                                    <button type="button" class="btn btn-primary" :disabled="detailsLoading" @click="fetchAvailableDetails">
-                                        {{ detailsLoading ? 'Recherche...' : 'Rechercher' }}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div v-if="!hasSearched" class="alert alert-light border mb-0">
-                                Lancez une recherche pour afficher seulement les details utiles et ajouter vos selections au panier.
-                            </div>
-
-                            <div v-else class="table-responsive">
-                                <table class="table table-bordered mb-0">
-                                    <thead>
-                                        <tr>
-                                            <th>Fournisseur</th>
-                                            <th>Contrat</th>
-                                            <th>Code couleur</th>
-                                            <th>Categorie</th>
-                                            <th>Epaisseur</th>
-                                            <th>Prevue</th>
-                                            <th>Deja livree</th>
-                                            <th>Disponible</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-if="detailsLoading">
-                                            <td colspan="9" class="text-center py-4">Chargement...</td>
-                                        </tr>
-                                        <tr v-else-if="!availableDetailsState.length">
-                                            <td colspan="9" class="text-center py-4">Aucun detail disponible pour cette recherche.</td>
-                                        </tr>
-                                        <tr v-for="detail in availableDetailsState" :key="detail.id">
-                                            <td>{{ detail.supplier_name || '-' }}</td>
-                                            <td>{{ detail.numero_contrat || '-' }}</td>
-                                            <td><span class="badge badge-info">{{ detail.code_couleur || '-' }}</span></td>
-                                            <td>
-                                                <span class="badge" :class="categorieBadgeClass(detail.categorie)">
-                                                    {{ categorieLabel(detail.categorie) }}
-                                                </span>
-                                            </td>
-                                            <td>{{ formatDecimal(detail.epaisseur) }}</td>
-                                            <td>{{ detail.quantite_prevue }}</td>
-                                            <td>{{ detail.quantite_livree_total }}</td>
-                                            <td>{{ detail.quantite_disponible }}</td>
-                                            <td>
-                                                <button
-                                                    type="button"
-                                                    class="btn btn-outline-primary btn-sm"
-                                                    :disabled="isAlreadySelected(detail.id) || detail.quantite_disponible < 1"
-                                                    @click="addLine(detail)"
-                                                >
-                                                    {{ isAlreadySelected(detail.id) ? 'Deja ajoute' : 'Ajouter' }}
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="col-md-4 col-lg-3 mt-3 d-flex align-items-end justify-content-end flex-wrap" style="gap: 8px;">
+                            <button type="button" class="btn btn-outline-secondary" @click="resetFilters">Reinitialiser</button>
+                            <button type="button" class="btn btn-primary" :disabled="detailsLoading" @click="fetchAvailableDetails">
+                                {{ detailsLoading ? 'Recherche...' : 'Rechercher' }}
+                            </button>
                         </div>
                     </div>
-                </div>
 
-                <div class="col-lg-4">
-                    <div class="card mb-4" style="position: sticky; top: 24px;">
-                        <div class="header">
-                            <h2>Panier</h2>
-                        </div>
-                        <div class="body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <strong>{{ selectedCount }} ligne(s)</strong>
-                                <span class="badge badge-light border">{{ totalQuantiteDisponibleSelectionnee }} disponible(s)</span>
-                            </div>
+                    <div v-if="!hasSearched" class="alert alert-light border mb-0">
+                        Lancez une recherche pour afficher les details disponibles.
+                    </div>
 
-                            <div v-if="!form.lignes.length" class="text-muted">
-                                Aucune ligne selectionnee pour le moment.
-                            </div>
-
-                            <div v-else>
-                                <div
-                                    v-for="ligne in form.lignes"
-                                    :key="ligne.planche_detail_id"
-                                    class="border rounded p-2 mb-2"
-                                    style="background: #fbfcfe;"
+                    <div v-else class="table-responsive">
+                        <table class="table table-bordered mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Code couleur</th>
+                                    <th>Categorie</th>
+                                    <th>Epaisseur</th>
+                                    <th>Disponible</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-if="detailsLoading">
+                                    <td colspan="5" class="text-center py-4">Chargement...</td>
+                                </tr>
+                                <tr v-else-if="!availableDetailsState.length">
+                                    <td colspan="5" class="text-center py-4">Aucun detail disponible pour cette recherche.</td>
+                                </tr>
+                                <tr
+                                    v-for="detail in availableDetailsState"
+                                    :key="detail.id"
+                                    style="cursor: pointer;"
+                                    @click="isAlreadySelected(detail.id) ? removeLineByDetailId(detail.id) : (detail.quantite_disponible >= 1 && addLine(detail))"
                                 >
-                                    <div class="font-weight-bold">{{ ligne.code_couleur || '-' }}</div>
-                                    <div class="small text-muted">{{ ligne.supplier_name || '-' }} | {{ ligne.numero_contrat || '-' }}</div>
-                                    <div class="small text-muted">
-                                        {{ categorieLabel(ligne.categorie) }} | {{ formatDecimal(ligne.epaisseur) }} mm | dispo {{ ligne.quantite_disponible }}
-                                    </div>
-                                    <button type="button" class="btn btn-link btn-sm text-danger px-0 mt-1" @click="removeLineByDetailId(ligne.planche_detail_id)">
-                                        Retirer du panier
-                                    </button>
-                                </div>
-                            </div>
+                                    <td class="text-center" @click.stop>
+                                        <input
+                                            type="checkbox"
+                                            :checked="isAlreadySelected(detail.id)"
+                                            :disabled="detail.quantite_disponible < 1 && !isAlreadySelected(detail.id)"
+                                            style="width: 18px; height: 18px; cursor: pointer;"
+                                            @change="isAlreadySelected(detail.id) ? removeLineByDetailId(detail.id) : addLine(detail)"
+                                        />
+                                    </td>
+                                    <td><span class="badge badge-info">{{ detail.code_couleur || '-' }}</span></td>
+                                    <td>
+                                        <span class="badge" :class="categorieBadgeClass(detail.categorie)">
+                                            {{ categorieLabel(detail.categorie) }}
+                                        </span>
+                                    </td>
+                                    <td>{{ formatDecimal(detail.epaisseur) }}</td>
+                                    <td>{{ detail.quantite_disponible }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
-                            <small v-if="errors.lignes" class="text-danger d-block mb-3">{{ errors.lignes[0] }}</small>
-
-                            <div v-if="stepOneRequirements.length" class="alert alert-warning mb-3">
-                                <strong>Encore a completer :</strong>
-                                <div class="mt-2" v-for="requirement in stepOneRequirements" :key="requirement">
-                                    - {{ requirement }}
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                class="btn btn-success btn-block"
-                                :disabled="!canMoveToStepTwo"
-                                :title="stepOneRequirements.length ? `Il manque: ${stepOneRequirements.join(', ')}` : 'Passer a l etape 2'"
-                                @click="goToStep(2)"
-                            >
-                                Passer a l etape 2
-                            </button>
-                            <small class="text-muted d-block mt-2">
-                                L etape suivante vous permettra de saisir les quantites livrees, les prix unitaires et les totaux.
-                            </small>
-                        </div>
+                    <div class="mt-3">
+                        <small v-if="errors.lignes" class="text-danger d-block mb-2">{{ errors.lignes[0] }}</small>
+                        <button
+                            type="button"
+                            class="btn btn-success"
+                            :disabled="!canMoveToStepTwo"
+                            :title="stepOneRequirements.length ? `Il manque: ${stepOneRequirements.join(', ')}` : ''"
+                            @click="goToStep(2)"
+                        >
+                            Passer a l etape suivante
+                            <span v-if="selectedCount > 0">({{ selectedCount }})</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -264,18 +188,127 @@
 
         <template v-else>
             <div class="card mb-4">
-                <div class="header">
-                    <h2>Etape 2 - Lignes de la facture</h2>
+                <div class="header d-flex justify-content-between align-items-center flex-wrap" style="gap: 8px;">
+                    <h2 class="mb-0">Etape 2 - Lignes de la facture</h2>
+                    <button type="button" class="btn btn-outline-primary btn-sm" @click="toggleSearchOnStep2">
+                        <i class="fa fa-plus"></i> {{ showSearchOnStep2 ? 'Masquer la recherche' : 'Ajouter des lignes' }}
+                    </button>
                 </div>
                 <div class="body">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap mb-3" style="gap: 12px;">
-                        <div class="text-muted">
-                            Ajustez les quantites et les prix des lignes selectionnees avant l enregistrement final.
+                    <div v-if="showSearchOnStep2" class="border rounded p-3 mb-4 bg-light">
+                        <div class="row mb-3">
+                            <div class="col-md-4 col-lg-3">
+                                <label class="small font-weight-bold">Code couleur</label>
+                                <PlancheColorInput
+                                    :model-value="filters.code_couleur"
+                                    placeholder="Cliquez puis tapez..."
+                                    @update:modelValue="filters.code_couleur = $event"
+                                />
+                            </div>
+
+                            <div class="col-md-4 col-lg-3">
+                                <label class="small font-weight-bold">Categorie</label>
+                                <select v-model="filters.categorie" class="form-control">
+                                    <option value="">Toutes</option>
+                                    <option value="mate">Mate</option>
+                                    <option value="semi_brillant">Semi-brillant</option>
+                                    <option value="brillant">Brillant</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4 col-lg-3">
+                                <label class="small font-weight-bold">Epaisseur</label>
+                                <select v-model="filters.epaisseur" class="form-control">
+                                    <option value="">Toutes</option>
+                                    <option
+                                        v-for="epaisseurOption in epaisseurOptions"
+                                        :key="epaisseurOption.id"
+                                        :value="epaisseurOption.value"
+                                    >
+                                        {{ epaisseurOption.label }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4 col-lg-3 mt-3 d-flex align-items-end justify-content-end flex-wrap" style="gap: 8px;">
+                                <button type="button" class="btn btn-outline-secondary" @click="resetFilters">Reinitialiser</button>
+                                <button type="button" class="btn btn-primary" :disabled="detailsLoading" @click="fetchAvailableDetails">
+                                    {{ detailsLoading ? 'Recherche...' : 'Rechercher' }}
+                                </button>
+                            </div>
                         </div>
+
+                        <div v-if="!hasSearched" class="alert alert-light border mb-0">
+                            Lancez une recherche pour afficher les details disponibles.
+                        </div>
+
+                        <div v-else class="table-responsive">
+                            <table class="table table-bordered mb-0">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th>Code couleur</th>
+                                        <th>Categorie</th>
+                                        <th>Epaisseur</th>
+                                        <th>Disponible</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-if="detailsLoading">
+                                        <td colspan="5" class="text-center py-4">Chargement...</td>
+                                    </tr>
+                                    <tr v-else-if="!availableDetailsState.length">
+                                        <td colspan="5" class="text-center py-4">Aucun detail disponible pour cette recherche.</td>
+                                    </tr>
+                                    <tr
+                                        v-for="detail in availableDetailsState"
+                                        :key="detail.id"
+                                        style="cursor: pointer;"
+                                        @click="isAlreadySelected(detail.id) ? removeLineByDetailId(detail.id) : (detail.quantite_disponible >= 1 && addLine(detail))"
+                                    >
+                                        <td class="text-center" @click.stop>
+                                            <input
+                                                type="checkbox"
+                                                :checked="isAlreadySelected(detail.id)"
+                                                :disabled="detail.quantite_disponible < 1 && !isAlreadySelected(detail.id)"
+                                                style="width: 18px; height: 18px; cursor: pointer;"
+                                                @change="isAlreadySelected(detail.id) ? removeLineByDetailId(detail.id) : addLine(detail)"
+                                            />
+                                        </td>
+                                        <td><span class="badge badge-info">{{ detail.code_couleur || '-' }}</span></td>
+                                        <td>
+                                            <span class="badge" :class="categorieBadgeClass(detail.categorie)">
+                                                {{ categorieLabel(detail.categorie) }}
+                                            </span>
+                                        </td>
+                                        <td>{{ formatDecimal(detail.epaisseur) }}</td>
+                                        <td>{{ detail.quantite_disponible }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap mb-3" style="gap: 12px;">
                         <div class="d-flex flex-wrap" style="gap: 8px;">
                             <span class="badge badge-light border px-3 py-2">{{ selectedCount }} ligne(s)</span>
                             <span class="badge badge-light border px-3 py-2">Quantite totale: {{ totalQuantite }}</span>
                             <span class="badge badge-light border px-3 py-2">Montant total: {{ formatCurrency(totalMontant) }}</span>
+                        </div>
+                        <div class="input-group" style="max-width: 320px;">
+                            <input
+                                v-model="globalPrice"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                class="form-control"
+                                placeholder="Prix unitaire pour toutes les lignes"
+                            />
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-outline-secondary" @click="applyGlobalPrice">
+                                    Appliquer a tous
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -286,7 +319,7 @@
                                     <th>Code couleur</th>
                                     <th>Categorie</th>
                                     <th>Epaisseur</th>
-                                    <th>Disponible</th>
+                                    
                                     <th>Quantite livree</th>
                                     <th>Prix unitaire</th>
                                     <th>Total</th>
@@ -305,7 +338,7 @@
                                         </span>
                                     </td>
                                     <td>{{ formatDecimal(ligne.epaisseur) }}</td>
-                                    <td>{{ ligne.quantite_disponible }}</td>
+                                    
                                     <td>
                                         <input
                                             v-model="ligne.quantite_livree"
@@ -326,6 +359,7 @@
                                             min="0"
                                             step="0.01"
                                             class="form-control"
+                                            @input="clearErrors([`lignes.${index}.prix_unitaire`, 'lignes'])"
                                         />
                                         <small v-if="errors[`lignes.${index}.prix_unitaire`]" class="text-danger">
                                             {{ errors[`lignes.${index}.prix_unitaire`][0] }}
@@ -407,7 +441,7 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import axios from 'axios';
 import { Head, Link } from '@inertiajs/vue3';
 import { Inertia } from '@inertiajs/inertia';
@@ -430,6 +464,21 @@ const breadcrumbs = [
 ];
 
 const currentStep = ref(1);
+const showSearchOnStep2 = ref(false);
+
+function toggleSearchOnStep2() {
+    if (!showSearchOnStep2.value) {
+        skipFilterWatch = true;
+        filters.code_couleur = '';
+        filters.categorie = '';
+        filters.epaisseur = '';
+        hasSearched.value = false;
+        availableDetailsState.value = [];
+    }
+
+    showSearchOnStep2.value = !showSearchOnStep2.value;
+}
+const globalPrice = ref('');
 const detailsLoading = ref(false);
 const submitting = ref(false);
 const hasSearched = ref(props.availableDetails.length > 0);
@@ -461,11 +510,24 @@ const epaisseurOptions = computed(() => {
 });
 
 const filters = reactive({
-    supplier_id: '',
-    numero_contrat: '',
     code_couleur: '',
     categorie: '',
     epaisseur: '',
+});
+
+let searchDebounceTimer = null;
+let skipFilterWatch = false;
+
+watch(filters, () => {
+    if (skipFilterWatch) {
+        skipFilterWatch = false;
+        return;
+    }
+
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        fetchAvailableDetails();
+    }, 300);
 });
 
 const form = reactive({
@@ -517,8 +579,6 @@ function fetchAvailableDetails() {
 
     axios.get('/admin/planche-bons-livraison/details-disponibles', {
         params: {
-            supplier_id: filters.supplier_id || undefined,
-            numero_contrat: filters.numero_contrat || undefined,
             code_couleur: filters.code_couleur || undefined,
             categorie: filters.categorie || undefined,
             epaisseur: filters.epaisseur || undefined,
@@ -545,13 +605,10 @@ function extractEpaisseurValue(item) {
 }
 
 function resetFilters() {
-    filters.supplier_id = '';
-    filters.numero_contrat = '';
     filters.code_couleur = '';
     filters.categorie = '';
     filters.epaisseur = '';
-    hasSearched.value = false;
-    availableDetailsState.value = [];
+    // Le watch sur filters va déclencher fetchAvailableDetails automatiquement
 }
 
 function clearErrors(keys = []) {
@@ -647,27 +704,33 @@ function validateLineQuantities() {
     const nextErrors = { ...errors.value };
 
     Object.keys(nextErrors)
-        .filter((key) => key === 'lignes' || key.match(/^lignes\.\d+\.quantite_livree$/))
+        .filter((key) => key === 'lignes' || key.match(/^lignes\.\d+\.(quantite_livree|prix_unitaire)$/))
         .forEach((key) => delete nextErrors[key]);
 
     form.lignes.forEach((ligne, index) => {
         const quantity = Number(ligne.quantite_livree);
         const available = Number(ligne.quantite_disponible || 0);
+        const price = Number(ligne.prix_unitaire);
 
         if (!Number.isFinite(quantity) || quantity < 1) {
             nextErrors[`lignes.${index}.quantite_livree`] = ['La quantite livree doit etre superieure ou egale a 1.'];
-            return;
+        } else if (quantity > available) {
+            nextErrors[`lignes.${index}.quantite_livree`] = [`La quantite livree ne peut pas depasser le disponible (${available}).`];
         }
 
-        if (quantity > available) {
-            nextErrors[`lignes.${index}.quantite_livree`] = [`La quantite livree ne peut pas depasser le disponible (${available}).`];
+        if (!Number.isFinite(price) || price <= 0) {
+            nextErrors[`lignes.${index}.prix_unitaire`] = ['Le prix unitaire doit etre superieur a 0.'];
         }
     });
 
-    if (Object.keys(nextErrors).some((key) => key === 'lignes' || key.match(/^lignes\.\d+\.quantite_livree$/))) {
-        nextErrors.lignes = ['Corrigez les quantites livrees qui depassent le disponible.'];
+    const hasError = Object.keys(nextErrors).some((key) =>
+        key === 'lignes' || key.match(/^lignes\.\d+\.(quantite_livree|prix_unitaire)$/)
+    );
+
+    if (hasError) {
+        nextErrors.lignes = ['Corrigez les erreurs dans les lignes avant d enregistrer.'];
         errors.value = nextErrors;
-        formError.value = 'Certaines quantites livrees depassent le disponible.';
+        formError.value = 'Certaines lignes ont des erreurs. Verifiez les quantites et les prix.';
         return false;
     }
 
@@ -744,6 +807,16 @@ function formatDecimal(value) {
 
 function lineTotal(ligne) {
     return Number(ligne.quantite_livree || 0) * Number(ligne.prix_unitaire || 0);
+}
+
+function applyGlobalPrice() {
+    if (globalPrice.value === '' || globalPrice.value === null) {
+        return;
+    }
+
+    form.lignes.forEach((ligne) => {
+        ligne.prix_unitaire = globalPrice.value;
+    });
 }
 
 function formatCurrency(value) {
