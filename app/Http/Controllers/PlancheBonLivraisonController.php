@@ -41,7 +41,9 @@ class PlancheBonLivraisonController extends Controller
 
         $pdf = PDF::loadView('planche-bons-livraison.pdf', ['bon' => $plancheBonLivraison]);
 
-        return $pdf->stream("bon-livraison_{$plancheBonLivraison->numero_bl}.pdf");
+        $safeNumeroBl = str_replace(['/', '\\'], '-', $plancheBonLivraison->numero_bl);
+
+        return $pdf->stream("bon-livraison_{$safeNumeroBl}.pdf");
     }
 
     public function show(PlancheBonLivraison $plancheBonLivraison)
