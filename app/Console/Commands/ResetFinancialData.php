@@ -48,7 +48,7 @@ class ResetFinancialData extends Command
         $this->line('');
         $this->info('Suppression en cours...');
 
-        DB::transaction(function () {
+        DB::transaction(function () use ($caissePrincipaleId, $caissePrincipaleName) {
             // 1. Corrections financières (références sur les autres tables)
             DB::table('finance_corrections')->delete();
             $this->line('  ✓ finance_corrections vidée');
