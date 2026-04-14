@@ -42,8 +42,8 @@
                 <div class="card secondary-bg">
                     <div class="body">
                         <div class="p-15 text-light">
-                            <h3>{{formatTotalPrice(client.amount_due)}} F</h3>
-                            <span>Montant Facture </span>
+                            <h3>{{formatTotalPrice(total_due)}} F</h3>
+                            <span>Montant Facture</span>
                         </div>
                     </div>
                 </div>
@@ -52,7 +52,7 @@
                 <div class="card bg-info">
                     <div class="body">
                         <div class="p-15 text-light">
-                            <h3>{{formatTotalPrice(client.amount_payment)}} F</h3>
+                            <h3>{{formatTotalPrice(total_paid)}} F</h3>
                             <span>Montant Payé</span>
                         </div>
                     </div>
@@ -62,8 +62,8 @@
                 <div class="card bg-info">
                     <div class="body">
                         <div class="p-15 text-light">
-                            <h3>{{formatTotalPrice(client.amount_solde)}} F</h3>
-                            <span>Montant A Payé</span>
+                            <h3>{{formatTotalPrice(total_solde)}} F</h3>
+                            <span>Montant À Payer</span>
                         </div>
                     </div>
                 </div>
@@ -429,9 +429,10 @@ function deletePayment(id) {
 }
 
 const props = defineProps({
-    client: Array,
+    client: Object,
     total_due: Number,
     total_paid: Number,
+    total_solde: Number,
     total_invoice: Number,
 });
 

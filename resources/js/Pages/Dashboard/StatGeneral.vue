@@ -28,7 +28,7 @@
 import { ref, computed, onMounted } from "vue";
 import axios from "axios";
 
-const data = ref(null);
+const data    = ref(null);
 const loading = ref(false);
 
 const fetchDashboardStats = async () => {
@@ -50,45 +50,45 @@ const stats = computed(() => {
     const d = data.value;
     return [
         {
-            key: "ca",
-            label: "Chiffre d'affaires",
-            icon: "fa fa-bar-chart",
-            color: "#007bff",
+            key:       "ca",
+            label:     "Chiffre d'affaires",
+            icon:      "fa fa-bar-chart",
+            color:     "#007bff",
             formatted: formatPrice(d?.chiffre_affaires),
         },
         {
-            key: "ca_old",
-            label: "Ancien compte",
-            icon: "fa fa-history",
-            color: "#6c757d",
+            key:       "ca_old",
+            label:     "Ancien compte",
+            icon:      "fa fa-history",
+            color:     "#6c757d",
             formatted: formatPrice(d?.chiffre_affaire_old),
         },
         {
-            key: "paye",
-            label: "Montant payé",
-            icon: "fa fa-check-circle",
-            color: "#28a745",
+            key:       "paye",
+            label:     "Montant payé",
+            icon:      "fa fa-check-circle",
+            color:     "#28a745",
             formatted: formatPrice(d?.montant_paye),
         },
         {
-            key: "du",
-            label: "Montant dû",
-            icon: "fa fa-exclamation-triangle",
-            color: "#dc3545",
+            key:       "du",
+            label:     "Montant dû",
+            icon:      "fa fa-exclamation-triangle",
+            color:     "#dc3545",
             formatted: formatPrice(d?.montant_du),
         },
         {
-            key: "stock",
-            label: "Colis en stock",
-            icon: "fa fa-cubes",
-            color: "#fd7e14",
-            formatted: d ? (d.stock_disponible ?? 0) + " colis" : "—",
+            key:       "bons",
+            label:     "Bons de livraison",
+            icon:      "fa fa-file-text",
+            color:     "#fd7e14",
+            formatted: d ? (d.nb_bons_livraison ?? 0) + " bons" : "—",
         },
         {
-            key: "caisse",
-            label: "Solde caisse",
-            icon: "fa fa-money",
-            color: "#17a2b8",
+            key:       "caisse",
+            label:     "Solde caisse",
+            icon:      "fa fa-money",
+            color:     "#17a2b8",
             formatted: formatPrice(d?.soldeCaisse),
         },
     ];

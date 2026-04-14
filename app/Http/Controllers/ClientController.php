@@ -29,22 +29,30 @@ class ClientController extends Controller
     // Vue principale pour l'interface
     public function show(Client $client)
     {
-        $totalInvoice = Invoice::where([
-            'client_id'=>$client->id
-        ])->where('status','!=','canceled')->count();
-        $totalDue  = Transaction::where([
-            'client_id'=>$client->id,
-            'type'=>'invoice'
-        ])->sum('amount');
-        $totalPaid   = Transaction::where([
-            'client_id'=>$client->id,
-            'type'=>'payment'
-        ])->sum('amount');
-        //dd($totalInvoice, $totalDue, $totalPaid);
-        return Inertia::render('Clients/Show',[
-            'client' => $client,
-            'total_due' => $totalDue,
-            'total_paid' => $totalPaid,
+        // Uniquement les factures liées aux planches (planche_bon_livraison_id non null)
+        $totalInvoice = Invoice::where('client_id', $client->id)
+            ->whereNotNull('planche_bon_livraison_id')
+            ->where('status', '!=', 'canceled')
+            ->count();
+
+        // Montant total facturé planches
+        $totalDue = Transaction::where('client_id', $client->id)
+            ->where('type', 'invoice')
+            ->whereHas('invoice', fn($q) => $q->whereNotNull('planche_bon_livraison_id'))
+            ->sum('amount');
+
+        // Montant total payé (les paiements ne sont pas liés à un type de facture spécifique)
+        $totalPaid = Transaction::where('client_id', $client->id)
+            ->where('type', 'payment')
+            ->sum('amount');
+
+        $totalSolde = $totalDue - $totalPaid;
+
+        return Inertia::render('Clients/Show', [
+            'client'        => $client,
+            'total_due'     => $totalDue,
+            'total_paid'    => $totalPaid,
+            'total_solde'   => $totalSolde,
             'total_invoice' => $totalInvoice,
         ]);
     }
@@ -114,9 +122,19 @@ class ClientController extends Controller
 
     public function fetchTransactionPaiement(Client $client)
     {
-        $transactions = Transaction::with('invoice')->where([
-            'client_id'=>$client->id
-        ])->orderBy('transaction_date', 'asc')
+        // Uniquement les transactions planches :
+        // - paiements (type = payment) : toujours inclus
+        // - factures (type = invoice) : seulement si la facture liée concerne les planches
+        $transactions = Transaction::with('invoice')
+            ->where('client_id', $client->id)
+            ->where(function ($q) {
+                $q->where('type', 'payment')
+                  ->orWhere(function ($q2) {
+                      $q2->where('type', 'invoice')
+                         ->whereHas('invoice', fn($q3) => $q3->whereNotNull('planche_bon_livraison_id'));
+                  });
+            })
+            ->orderBy('transaction_date', 'asc')
             ->get();
 
 
@@ -155,9 +173,17 @@ class ClientController extends Controller
 
     public function geratePDF(Client $client)
     {
-        $transactions = Transaction::with('invoice')->where([
-            'client_id'=>$client->id
-        ])->orderBy('transaction_date', 'asc')
+        // Même filtre planches que fetchTransactionPaiement
+        $transactions = Transaction::with('invoice')
+            ->where('client_id', $client->id)
+            ->where(function ($q) {
+                $q->where('type', 'payment')
+                  ->orWhere(function ($q2) {
+                      $q2->where('type', 'invoice')
+                         ->whereHas('invoice', fn($q3) => $q3->whereNotNull('planche_bon_livraison_id'));
+                  });
+            })
+            ->orderBy('transaction_date', 'asc')
             ->get();
 
 
@@ -307,7 +333,9 @@ class ClientController extends Controller
      */
     private function getClientsWithBalances()
     {
-        return Client::whereHas('transactions')
+        return Client::whereHas('invoices', function ($query) {
+                $query->whereNotNull('planche_bon_livraison_id');
+            })
             ->withSum(['transactions as total_invoices' => function ($query) {
                 $query->where('type', 'invoice');
             }], 'amount')
@@ -339,7 +367,9 @@ class ClientController extends Controller
      */
     private function getClientsWithZeroBalances()
     {
-        return Client::whereHas('transactions')
+        return Client::whereHas('invoices', function ($query) {
+                $query->whereNotNull('planche_bon_livraison_id');
+            })
             ->withSum(['transactions as total_invoices' => function ($query) {
                 $query->where('type', 'invoice');
             }], 'amount')
@@ -500,6 +530,11 @@ class ClientController extends Controller
     public function accountingHistory()
     {
         $history = AccountingHistory::with(['user', 'client'])
+            ->whereHas('client', function ($query) {
+                $query->whereHas('invoices', function ($q) {
+                    $q->whereNotNull('planche_bon_livraison_id');
+                });
+            })
             ->orderBy('created_at', 'desc')
             ->paginate(25);
 

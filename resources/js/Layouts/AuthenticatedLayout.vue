@@ -47,20 +47,12 @@
                     <img :src="'/assets/images/user.png'" class="rounded-circle user-photo" alt="User Profile Picture">
                     <div class="dropdown">
                         <strong>
-                            <span>Prenom</span>
-                            <span class="text-uppercase">NOM </span>
+                            <span>{{ authUser?.name }}</span>
                         </strong>
                         <br>
-                        <a href="javascript:void(0);" class="dropdown-toggle user-name" data-toggle="dropdown">
-                            <u>Mon profil</u>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-right account">
-                            <li><a href="page-profile2.html"><i class="icon-user"></i>My Profile</a></li>
-                            <li><a href="app-inbox.html"><i class="icon-envelope-open"></i>Messages</a></li>
-                            <li><a href="javascript:void(0);"><i class="icon-settings"></i>Settings</a></li>
-                            <li class="divider"></li>
-                            <li><a href="page-login.html"><i class="icon-power"></i>Logout</a></li>
-                        </ul>
+                        <span class="badge" :class="authUser?.role === 'admin' ? 'badge-danger' : 'badge-info'" style="font-size:11px;">
+                            {{ authUser?.role === 'admin' ? 'Admin' : 'Comptable' }}
+                        </span>
                     </div>
                 </div>
 
@@ -112,6 +104,8 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 const currentUrl = window.location.pathname;
 const page = usePage();
 const appName = import.meta.env.VITE_APP_NAME || page.props?.appName || 'SAMABOIS';
+const authUser = computed(() => page.props.auth?.user);
+const isAdmin = computed(() => authUser.value?.role === 'admin');
 const isPageLoading = ref(true);
 const sidebarVisible = ref(window.innerWidth >= 768);
 const activeSubMenu = ref(null);
@@ -126,33 +120,73 @@ const containerClasses = computed(() => ({
     'full-width': sidebarVisible.value,
 }));
 
-const menuItems = ref([
-    
-    
+// Menu complet — filtré selon le rôle au rendu
+const allMenuItems = [
+    {
+        name: 'Tableau de bord',
+        icon: 'fa fa-dashboard',
+        url: '/dashboard',
+        roles: ['admin'],
+        subMenu: [],
+    },
     {
         name: 'Planches',
         icon: 'fa fa-th-large',
-        active_btn: 'admin/contrats',
-        visibility: false,
+        roles: ['admin', 'comptable'],
         subMenu: [
-            { name: 'Liste des contrats', url: '/admin/contrats' },
+            { name: 'Liste des planches',   url: '/admin/planches' },
             { name: 'Ajouter des planches', url: '/admin/planches/create' },
-            { name: 'Factures', url: '/admin/planche-bons-livraison' },
+            { name: 'Contrats',             url: '/admin/contrats' },
         ],
     },
-    
-    
+    {
+        name: 'Factures',
+        icon: 'fa fa-file-text',
+        url: '/admin/planche-bons-livraison',
+        roles: ['admin', 'comptable'],
+        subMenu: [],
+    },
+    {
+        name: 'Clients',
+        icon: 'fa fa-users',
+        roles: ['admin'],
+        subMenu: [
+            { name: 'Liste des clients',          url: '/admin/clients' },
+            { name: 'Comptes clients',             url: '/admin/clients/comptes' },
+            { name: 'Historique comptabilité',     url: '/admin/clients/historique-comptabilite' },
+        ],
+    },
+    {
+        name: 'Finances',
+        icon: 'fa fa-money',
+        roles: ['admin'],
+        subMenu: [
+            { name: 'Gestion des caisses', url: '/admin/finances/caisses' },
+            { name: 'Historique caisse',   url: '/admin/finances/caisse' },
+            { name: 'Rapports',            url: '/admin/finances/rapports' },
+        ],
+    },
     {
         name: 'Configuration',
         icon: 'fa fa-cogs',
-        active_btn: 'admin/configuration',
-        visibility: false,
+        roles: ['admin'],
         subMenu: [
-            { name: 'Epaisseurs', url: '/admin/configuration' },
+            { name: 'Paramètres', url: '/admin/configuration' },
         ],
     },
-    
-]);
+    {
+        name: 'Utilisateurs',
+        icon: 'fa fa-user-circle',
+        url: '/admin/users',
+        roles: ['admin'],
+        subMenu: [],
+    },
+];
+
+const menuItems = computed(() => {
+    const role = authUser.value?.role;
+    return allMenuItems.filter(item => item.roles.includes(role));
+});
 
 const toggleSubMenu = (menuName) => {
     activeSubMenu.value = activeSubMenu.value === menuName ? null : menuName;
