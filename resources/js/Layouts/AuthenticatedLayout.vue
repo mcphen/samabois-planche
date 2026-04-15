@@ -136,7 +136,7 @@ const allMenuItems = [
         subMenu: [
             { name: 'Liste des planches',   url: '/admin/planches' },
             { name: 'Ajouter des planches', url: '/admin/planches/create' },
-            { name: 'Contrats',             url: '/admin/contrats' },
+          //  { name: 'Contrats',             url: '/admin/contrats' },
         ],
     },
     {

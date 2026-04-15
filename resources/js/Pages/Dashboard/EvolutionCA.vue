@@ -13,13 +13,56 @@
         </div>
 
         <div class="card-body">
-            <!-- Filtre client uniquement -->
+            <!-- Filtres -->
             <div class="row mb-3">
-                <div class="col-md-6 col-sm-12 mb-2">
+                <div class="col-md-3 col-sm-6 mb-2">
                     <label class="small font-weight-bold mb-1">Client</label>
                     <select v-model="filters.client_id" class="form-control form-control-sm">
                         <option value="">Tous les clients</option>
                         <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.name }}</option>
+                    </select>
+                </div>
+                <div class="col-md-3 col-sm-6 mb-2 position-relative">
+                    <label class="small font-weight-bold mb-1">Code couleur</label>
+                    <input
+                        type="text"
+                        v-model="couleurSearch"
+                        @input="showCouleurDropdown = true"
+                        @focus="showCouleurDropdown = true"
+                        @blur="hideCouleurDropdown"
+                        class="form-control form-control-sm"
+                        placeholder="Rechercher une couleur…"
+                        autocomplete="off"
+                    />
+                    <ul v-if="showCouleurDropdown && filteredCouleurs.length"
+                        class="dropdown-menu show w-100 mb-0 p-0"
+                        style="max-height:180px;overflow-y:auto;top:100%;z-index:1050;">
+                        <li>
+                            <a class="dropdown-item small py-1" href="#" @mousedown.prevent="selectCouleur(null)">
+                                <em class="text-muted">Toutes les couleurs</em>
+                            </a>
+                        </li>
+                        <li v-for="c in filteredCouleurs" :key="c.id">
+                            <a class="dropdown-item small py-1" href="#" @mousedown.prevent="selectCouleur(c)">
+                                {{ c.code }}
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-md-3 col-sm-6 mb-2">
+                    <label class="small font-weight-bold mb-1">Épaisseur</label>
+                    <select v-model="filters.epaisseur" class="form-control form-control-sm">
+                        <option value="">Toutes les épaisseurs</option>
+                        <option v-for="e in epaisseurs" :key="e.id" :value="e.intitule">{{ e.intitule }}</option>
+                    </select>
+                </div>
+                <div class="col-md-3 col-sm-6 mb-2">
+                    <label class="small font-weight-bold mb-1">Catégorie</label>
+                    <select v-model="filters.categorie" class="form-control form-control-sm">
+                        <option value="">Toutes les catégories</option>
+                        <option value="mate">Mate</option>
+                        <option value="semi_brillant">Semi-brillant</option>
+                        <option value="brillant">Brillant</option>
                     </select>
                 </div>
             </div>
@@ -97,12 +140,32 @@ import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import LineChart from "@/Components/stats/LineChart.vue";
 
-const rawData  = ref([]);
-const clients  = ref([]);
-const loading  = ref(false);
-const activeTab = ref("chart");
+const rawData    = ref([]);
+const clients    = ref([]);
+const couleurs   = ref([]);
+const epaisseurs = ref([]);
+const loading    = ref(false);
+const activeTab  = ref("chart");
 
-const filters = ref({ client_id: "" });
+const filters             = ref({ client_id: "", couleur_id: "", epaisseur: "", categorie: "" });
+const couleurSearch       = ref("");
+const showCouleurDropdown = ref(false);
+
+const filteredCouleurs = computed(() =>
+    couleurs.value.filter(c =>
+        !couleurSearch.value || c.code.toLowerCase().includes(couleurSearch.value.toLowerCase())
+    )
+);
+
+const selectCouleur = (c) => {
+    filters.value.couleur_id  = c ? c.id : "";
+    couleurSearch.value       = c ? c.code : "";
+    showCouleurDropdown.value = false;
+};
+
+const hideCouleurDropdown = () => {
+    setTimeout(() => { showCouleurDropdown.value = false; }, 150);
+};
 
 const formatPrice = (value) =>
     new Intl.NumberFormat("fr-FR", { style: "currency", currency: "XOF", maximumFractionDigits: 0 }).format(value ?? 0);
@@ -160,14 +223,22 @@ const fetchEvolution = async () => {
 };
 
 const resetFilters = () => {
-    filters.value = { client_id: "" };
+    filters.value             = { client_id: "", couleur_id: "", epaisseur: "", categorie: "" };
+    couleurSearch.value       = "";
+    showCouleurDropdown.value = false;
     fetchEvolution();
 };
 
 onMounted(async () => {
     fetchEvolution();
-    const { data: c } = await axios.get("/admin/clients/liste-clients");
-    clients.value = c.data ?? c;
+    const [{ data: c }, { data: col }, { data: ep }] = await Promise.all([
+        axios.get("/admin/clients/liste-clients"),
+        axios.get("/admin/configuration/planche-couleurs"),
+        axios.get("/admin/configuration/epaisseurs"),
+    ]);
+    clients.value    = c.data ?? c;
+    couleurs.value   = col;
+    epaisseurs.value = ep;
 });
 </script>
 

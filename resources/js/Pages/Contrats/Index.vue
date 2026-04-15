@@ -20,10 +20,11 @@
 
         <div class="card">
             <div class="body">
-                <div class="row mb-4">
-                    <div class="col-md-3">
+                <div class="row mb-3">
+                    <!-- Fournisseur -->
+                    <div class="col-md-3 col-sm-6 mb-2">
                         <label class="small font-weight-bold">Fournisseur</label>
-                        <select v-model="filters.supplier_id" class="form-control">
+                        <select v-model="filters.supplier_id" class="form-control form-control-sm">
                             <option value="">Tous les fournisseurs</option>
                             <option
                                 v-for="supplier in suppliers"
@@ -35,32 +36,83 @@
                         </select>
                     </div>
 
-                    <div class="col-md-3">
-                        <label class="small font-weight-bold">Numero contrat</label>
+                    <!-- Numéro contrat -->
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <label class="small font-weight-bold">Numéro contrat</label>
                         <input
                             v-model="filters.numero_contrat"
                             type="text"
-                            class="form-control"
+                            class="form-control form-control-sm"
                             placeholder="Rechercher un contrat"
                         />
                     </div>
 
-                    <div class="col-md-3">
+                    <!-- Code couleur (autocomplete) -->
+                    <div class="col-md-3 col-sm-6 mb-2 position-relative">
                         <label class="small font-weight-bold">Code couleur</label>
                         <input
                             v-model="filters.code_couleur"
                             type="text"
-                            class="form-control"
-                            placeholder="Ex: Bleu, Rouge"
+                            class="form-control form-control-sm"
+                            placeholder="Ex: Bleu, Rouge…"
+                            @input="showCouleurDropdown = true"
+                            @focus="showCouleurDropdown = true"
+                            @blur="hideCouleurDropdown"
+                            autocomplete="off"
                         />
+                        <ul v-if="showCouleurDropdown && filteredCouleurs.length"
+                            class="dropdown-menu show w-100 mb-0 p-0"
+                            style="max-height:180px;overflow-y:auto;top:100%;z-index:1050;">
+                            <li>
+                                <a class="dropdown-item small py-1" href="#" @mousedown.prevent="selectCouleur(null)">
+                                    <em class="text-muted">Tous les codes</em>
+                                </a>
+                            </li>
+                            <li v-for="c in filteredCouleurs" :key="c.id">
+                                <a class="dropdown-item small py-1" href="#" @mousedown.prevent="selectCouleur(c)">
+                                    {{ c.code }}
+                                </a>
+                            </li>
+                        </ul>
                     </div>
 
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button type="button" class="btn btn-outline-secondary mr-2" @click="resetFilters">
-                            Reinitialiser
+                    <!-- Client (autocomplete) -->
+                    <div class="col-md-3 col-sm-6 mb-2 position-relative">
+                        <label class="small font-weight-bold">Client</label>
+                        <input
+                            v-model="clientSearch"
+                            type="text"
+                            class="form-control form-control-sm"
+                            placeholder="Rechercher un client…"
+                            @input="showClientDropdown = true"
+                            @focus="showClientDropdown = true"
+                            @blur="hideClientDropdown"
+                            autocomplete="off"
+                        />
+                        <ul v-if="showClientDropdown && filteredClients.length"
+                            class="dropdown-menu show w-100 mb-0 p-0"
+                            style="max-height:180px;overflow-y:auto;top:100%;z-index:1050;">
+                            <li>
+                                <a class="dropdown-item small py-1" href="#" @mousedown.prevent="selectClient(null)">
+                                    <em class="text-muted">Tous les clients</em>
+                                </a>
+                            </li>
+                            <li v-for="c in filteredClients" :key="c.id">
+                                <a class="dropdown-item small py-1" href="#" @mousedown.prevent="selectClient(c)">
+                                    {{ c.name }}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-12 d-flex">
+                        <button type="button" class="btn btn-outline-secondary btn-sm mr-2" @click="resetFilters">
+                            <i class="fa fa-times mr-1"></i>Réinitialiser
                         </button>
-                        <button type="button" class="btn btn-primary" @click="fetchContrats()">
-                            Filtrer
+                        <button type="button" class="btn btn-primary btn-sm" @click="fetchContrats()">
+                            <i class="fa fa-filter mr-1"></i>Filtrer
                         </button>
                     </div>
                 </div>
@@ -162,11 +214,55 @@ const breadcrumbs = [
 
 const loading = ref(false);
 const filters = reactive({
-    supplier_id: '',
+    supplier_id:    '',
     numero_contrat: '',
-    code_couleur: '',
+    code_couleur:   '',
+    client_id:      '',
 });
 
+// ── Données pour les autocompletes ──────────────────────────────────────────
+const couleurs = ref([]);
+const clients  = ref([]);
+
+// ── Autocomplete code couleur ────────────────────────────────────────────────
+const showCouleurDropdown = ref(false);
+
+const filteredCouleurs = computed(() =>
+    couleurs.value.filter(c =>
+        !filters.code_couleur || c.code.toLowerCase().includes(filters.code_couleur.toLowerCase())
+    )
+);
+
+const selectCouleur = (c) => {
+    filters.code_couleur      = c ? c.code : '';
+    showCouleurDropdown.value = false;
+};
+
+const hideCouleurDropdown = () => {
+    setTimeout(() => { showCouleurDropdown.value = false; }, 150);
+};
+
+// ── Autocomplete client ──────────────────────────────────────────────────────
+const clientSearch       = ref('');
+const showClientDropdown = ref(false);
+
+const filteredClients = computed(() =>
+    clients.value.filter(c =>
+        !clientSearch.value || c.name.toLowerCase().includes(clientSearch.value.toLowerCase())
+    )
+);
+
+const selectClient = (c) => {
+    filters.client_id        = c ? c.id : '';
+    clientSearch.value       = c ? c.name : '';
+    showClientDropdown.value = false;
+};
+
+const hideClientDropdown = () => {
+    setTimeout(() => { showClientDropdown.value = false; }, 150);
+};
+
+// ── Contrats ─────────────────────────────────────────────────────────────────
 const contrats = ref({
     data: [],
     current_page: 1,
@@ -186,9 +282,10 @@ function fetchContrats(page = 1) {
     axios.get('/admin/contrats/listes', {
         params: {
             page,
-            supplier_id: filters.supplier_id || undefined,
+            supplier_id:    filters.supplier_id    || undefined,
             numero_contrat: filters.numero_contrat || undefined,
-            code_couleur: filters.code_couleur || undefined,
+            code_couleur:   filters.code_couleur   || undefined,
+            client_id:      filters.client_id      || undefined,
         },
     }).then((response) => {
         contrats.value = response.data;
@@ -198,13 +295,21 @@ function fetchContrats(page = 1) {
 }
 
 function resetFilters() {
-    filters.supplier_id = '';
+    filters.supplier_id    = '';
     filters.numero_contrat = '';
-    filters.code_couleur = '';
+    filters.code_couleur   = '';
+    filters.client_id      = '';
+    clientSearch.value     = '';
     fetchContrats();
 }
 
-onMounted(() => {
+onMounted(async () => {
     fetchContrats();
+    const [{ data: col }, { data: cli }] = await Promise.all([
+        axios.get('/admin/configuration/planche-couleurs'),
+        axios.get('/admin/clients/liste-clients'),
+    ]);
+    couleurs.value = col;
+    clients.value  = cli.data ?? cli;
 });
 </script>

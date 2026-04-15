@@ -91,6 +91,12 @@ class ContratController extends Controller
             });
         }
 
+        if ($request->filled('client_id')) {
+            $query->whereHas('planches.details.bonLivraisonLignes.bonLivraison', function ($q) use ($request) {
+                $q->where('client_id', $request->integer('client_id'));
+            });
+        }
+
         $contrats = $query->paginate(20);
         $contrats->setCollection(
             $contrats->getCollection()->map(fn (Contrat $item) => $this->decorateContrat($item))

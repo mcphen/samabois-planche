@@ -85,6 +85,20 @@ class DashboardController extends Controller
             $query->where('client_id', $request->client_id);
         }
 
+        if ($request->filled('couleur_id') || $request->filled('epaisseur') || $request->filled('categorie')) {
+            $query->whereHas('lignes.plancheDetail', function ($q) use ($request) {
+                if ($request->filled('couleur_id')) {
+                    $q->where('planche_couleur_id', $request->couleur_id);
+                }
+                if ($request->filled('epaisseur')) {
+                    $q->where('epaisseur', $request->epaisseur);
+                }
+                if ($request->filled('categorie')) {
+                    $q->where('categorie', $request->categorie);
+                }
+            });
+        }
+
         $stats = $query->get()->map(function ($stat) {
             $stat->cost_base = 0;
             $stat->profit    = 0;
@@ -107,6 +121,20 @@ class DashboardController extends Controller
 
         if ($request->filled('client_id')) {
             $query->where('client_id', $request->client_id);
+        }
+
+        if ($request->filled('couleur_id') || $request->filled('epaisseur') || $request->filled('categorie')) {
+            $query->whereHas('lignes.plancheDetail', function ($q) use ($request) {
+                if ($request->filled('couleur_id')) {
+                    $q->where('planche_couleur_id', $request->couleur_id);
+                }
+                if ($request->filled('epaisseur')) {
+                    $q->where('epaisseur', $request->epaisseur);
+                }
+                if ($request->filled('categorie')) {
+                    $q->where('categorie', $request->categorie);
+                }
+            });
         }
 
         $stats = $query->get()->map(function ($stat) {
@@ -143,6 +171,20 @@ class DashboardController extends Controller
 
         if ($request->filled('client_id')) {
             $query->where('client_id', $request->client_id);
+        }
+
+        if ($request->filled('couleur_id') || $request->filled('epaisseur') || $request->filled('categorie')) {
+            $query->whereHas('lignes.plancheDetail', function ($q) use ($request) {
+                if ($request->filled('couleur_id')) {
+                    $q->where('planche_couleur_id', $request->couleur_id);
+                }
+                if ($request->filled('epaisseur')) {
+                    $q->where('epaisseur', $request->epaisseur);
+                }
+                if ($request->filled('categorie')) {
+                    $q->where('categorie', $request->categorie);
+                }
+            });
         }
 
         foreach ($query->get() as $entry) {
