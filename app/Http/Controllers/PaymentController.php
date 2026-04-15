@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Caisse;
 use App\Models\CaisseTransaction;
 use App\Models\Client;
-use App\Models\FinanceCorrection;
 use App\Models\HistoriqueClientSolde;
 use App\Models\Payment;
 use App\Models\PlancheBonLivraison;
@@ -13,7 +12,6 @@ use App\Models\Transaction;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -82,10 +80,6 @@ class PaymentController extends Controller
             'objet'                 => "Paiement par le  client : ".$client->name,
             'user_id'               => auth()->id(),
         ]);
-        $this->updateAmountClient($client, $client->id);
-       // $client->amount_payment += $amountToPay;
-       // $client->amount_solde -= $amountToPay;
-       // $client->save();
         return response()->json([
             'message' => 'Paiement enregistré avec succès.',
             'remaining_amount' => $remainingAmount,
@@ -135,6 +129,16 @@ class PaymentController extends Controller
                 'amount'           => $amountToCancel,
                 'transaction_date' => Carbon::now()->toDateString(),
             ]);
+
+            // Marquer tous les BL non soldés comme validés
+            PlancheBonLivraison::where('client_id', $client->id)
+                ->where('status', '!=', 'validated')
+                ->where('statut', '!=', 'annule')
+                ->each(function (PlancheBonLivraison $bl) {
+                    $bl->montant_solde = $bl->montant;
+                    $bl->status        = 'validated';
+                    $bl->save();
+                });
         } else {
             // Solde négatif : le client a un crédit → on crée une facture d'ajustement pour absorber le crédit
             Transaction::create([
@@ -145,9 +149,6 @@ class PaymentController extends Controller
                 'transaction_date' => Carbon::now()->toDateString(),
             ]);
         }
-
-        // 2. Mettre à jour les montants du client
-        $this->updateAmountClient($client, $client->id);
 
         return response()->json(['message' => 'Le compte est maintenant soldé.']);
     }
@@ -185,8 +186,6 @@ class PaymentController extends Controller
             'amount' => $amountToPay,
             'date' => $transaction->transaction_date,
         ]);
-        $this->updateAmountClient($client, $clientId);
-
         return response()->json(['message' => 'Paiement modifié avec succès.',]);
 
     }
@@ -205,10 +204,6 @@ class PaymentController extends Controller
 
         $transaction->delete();
 
-        if ($client) {
-            $this->updateAmountClient($client, $client->id);
-        }
-
         return response()->json(['message' => 'Le paiement a été supprimé avec succès.']);
     }
 
@@ -226,90 +221,6 @@ class PaymentController extends Controller
         }
         return (int) $caisse->id;
     }
-
-    public function updateAmountClient(Client $client, $clientId){
-        // Snapshots avant recalcul
-        $before_amount_payment = (float) $client->amount_payment;
-        $before_amount_solde   = (float) $client->amount_solde;
-
-        $clients = Client::whereHas('transactions') // Clients ayant au moins une transaction
-        ->withSum(['transactions as total_invoices' => function ($query) {
-            $query->where('type', 'invoice');
-        }], 'amount')
-            ->withSum(['transactions as total_payments' => function ($query) {
-                $query->where('type', 'payment');
-            }], 'amount')
-            ->where('id',$clientId)->first();
-
-        // Valeurs calculées
-        $new_amount_payment = (float) ($clients->total_payments ?? 0);
-        $new_amount_solde   = (float) ($clients->balance ?? 0);
-
-        $client->amount_payment = $new_amount_payment;
-        $client->amount_solde   = $new_amount_solde;
-        $client->save();
-
-        // Logs détaillés du rétablissement/comptabilité client
-        Log::info('updateAmountClient: Client amounts recomputed', [
-            'client_id'            => $clientId,
-            'before_amount_payment'=> $before_amount_payment,
-            'before_amount_solde'  => $before_amount_solde,
-            'new_amount_payment'   => $new_amount_payment,
-            'new_amount_solde'     => $new_amount_solde,
-            'delta_payment'        => $new_amount_payment - $before_amount_payment,
-            'delta_solde'          => $new_amount_solde - $before_amount_solde,
-            'timestamp'            => now()->toDateTimeString(),
-            'source'               => 'PaymentController::updateAmountClient',
-        ]);
-
-        // Journalisation en base de données (table finance_corrections)
-        // On consigne l'opération de rétablissement des montants client
-        FinanceCorrection::create([
-            'correction_type' => 'client_account_recompute',
-            // champs génériques: on utilise amount pour le total des paiements
-            'old_amount'      => $before_amount_payment,
-            'new_amount'      => $new_amount_payment,
-            'old_date'        => null,
-            'new_date'        => null,
-            'old_description' => null,
-            'new_description' => null,
-            'reason'          => null,
-            'user_id'         => auth()->id(),
-            'meta'            => [
-                'client_id'     => $clientId,
-                'before'        => [
-                    'amount_payment' => $before_amount_payment,
-                    'amount_solde'   => $before_amount_solde,
-                ],
-                'after'         => [
-                    'amount_payment' => $new_amount_payment,
-                    'amount_solde'   => $new_amount_solde,
-                ],
-                'deltas'        => [
-                    'payment' => $new_amount_payment - $before_amount_payment,
-                    'solde'   => $new_amount_solde - $before_amount_solde,
-                ],
-                'source'        => 'PaymentController::updateAmountClient',
-                'timestamp'     => now()->toDateTimeString(),
-            ],
-        ]);
-    }
-
-    public function storeOldPaiement(Request $request,Client $client){
-        Transaction::firstOrCreate([
-            'client_id'=>$client->id,
-            'type'=>'invoice',
-            'amount'=>$request['amount'],
-            'transaction_date'=> \Carbon\Carbon::now(),
-            //'invoice_id',
-            'old_transaction'=>1
-        ]);
-
-        $client->amount_due += $request['amount'];
-        $client->amount_solde += $request['amount'];
-        $client->save();
-    }
-
 
     public function generatePaymentInvoice($payment_id)
     {

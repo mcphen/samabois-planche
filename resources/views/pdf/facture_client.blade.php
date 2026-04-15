@@ -71,11 +71,7 @@
                     @endif
                 </td>
                 <td>
-                    @if ($key === count($data) - 1)
-                        {{ number_format( (int) $client->amount_solde, 0, ',', '.') }} F
-                    @else
-                        {{ number_format( (int) $dt['cumul'], 0, ',', '.') }} F
-                    @endif
+                    {{ number_format( (int) $dt['cumul'], 0, ',', '.') }} F
                 </td>
             </tr>
         @endforeach

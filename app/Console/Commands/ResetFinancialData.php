@@ -36,8 +36,8 @@ class ResetFinancialData extends Command
         $this->line('  • Historiques comptabilité      : ' . DB::table('accounting_histories')->count());
         $this->line('');
         $this->line('Les données suivantes seront <fg=yellow>réinitialisées</> :');
-        $this->line('  • Soldes clients (amount_payment, amount_solde → 0)');
         $this->line('  • BL non annulés                → montant_solde = 0, status = pending');
+        $this->line('  (les soldes clients sont calculés à la volée depuis les transactions)');
         $this->line('');
 
         if (! $this->confirm('Confirmer la suppression ?', false)) {
@@ -93,14 +93,7 @@ class ResetFinancialData extends Command
             DB::table('accounting_histories')->delete();
             $this->line('  ✓ accounting_histories vidée');
 
-            // 10. Réinitialisation des soldes clients
-            DB::table('clients')->update([
-                'amount_payment' => 0,
-                'amount_solde'   => DB::raw('amount_due'),
-            ]);
-            $this->line('  ✓ clients : amount_payment = 0, amount_solde = amount_due');
-
-            // 11. Réinitialisation des bons de livraison non annulés
+            // 10. Réinitialisation des bons de livraison non annulés
             DB::table('planche_bons_livraison')
                 ->where('statut', '!=', 'annule')
                 ->update([

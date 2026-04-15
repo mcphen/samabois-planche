@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
 
 class ClientController extends Controller
 {
@@ -79,7 +78,18 @@ class ClientController extends Controller
             $query->where('email', 'like', '%' . $request->email . '%');
         }
 
-        $clients = $query->paginate(500); // 500 clients par page
+        $query->withSum(['transactions as amount_due' => fn ($q) => $q->where('type', 'invoice')], 'amount')
+              ->withSum(['transactions as amount_payment' => fn ($q) => $q->where('type', 'payment')], 'amount');
+
+        $clients = $query->paginate(500);
+
+        $clients->getCollection()->transform(function ($client) {
+            $client->amount_due     = (float) ($client->amount_due ?? 0);
+            $client->amount_payment = (float) ($client->amount_payment ?? 0);
+            $client->amount_solde   = $client->amount_due - $client->amount_payment;
+            return $client;
+        });
+
         return response()->json($clients);
     }
 
@@ -218,97 +228,6 @@ class ClientController extends Controller
         return $pdf->stream("repport_client_compte.pdf");
     }
 
-    public function recuperationCompte()
-    {
-        $clients = Client::all();
-
-        foreach ($clients as $client){
-            $total_invoices = Client::where('id',$client->id)->whereHas('transactions') // Clients ayant au moins une transaction
-            ->withSum(['transactions as total_invoices' => function ($query) {
-                $query->where('type', 'invoice');
-            }], 'amount')->first();
-            //dd($total_invoices);
-
-            $total_payments = Client::where('id',$client->id)->whereHas('transactions') // Clients ayant au moins une transaction
-            ->withSum(['transactions as total_payments' => function ($query) {
-                $query->where('type', 'payment');
-            }], 'amount')->first();
-
-           // dd($total_invoices,$total_payments);
-
-            $amount_due = !empty($total_invoices->total_invoices)? $total_invoices->total_invoices : 0;
-            $amount_payment = !empty($total_payments->total_payments) ?  $total_payments->total_payments : 0;
-            $amount_solde = $amount_due - $amount_payment;
-            /*if(!empty($total_invoices->total_invoices) && !empty($total_payments->total_payments)){
-                $amount_due = $total_invoices->total_invoices;
-                $amount_payment = $total_payments->total_payments;
-
-
-                //dd($total_invoices->total_invoices,$total_payments->total_payments,$soldes);
-
-            }*/
-
-            $client->amount_due = $amount_due;
-            $client->amount_payment = $amount_payment;
-            $client->amount_solde = $amount_solde;
-            $client->save();
-
-        }
-    }
-
-
-
-
-    /**
-     * Met à jour les montants du client (amount_due, amount_solde) basés sur ses transactions
-     *
-     * @param Client $client
-     * @param int $clientId
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function updateAmountClient(Client $client, $clientId)
-    {
-        $clients = Client::whereHas('transactions') // Clients ayant au moins une transaction
-        ->withSum(['transactions as total_invoices' => function ($query) {
-            $query->where('type', 'invoice');
-        }], 'amount')
-            ->withSum(['transactions as total_payments' => function ($query) {
-                $query->where('type', 'payment');
-            }], 'amount')
-            ->where('id', $clientId)->first();
-
-        $amount_due = !empty($clients->total_invoices) ? $clients->total_invoices : 0;
-        $amount_payment = !empty($clients->total_payments) ? $clients->total_payments : 0;
-        $amount_solde = $amount_due - $amount_payment;
-
-        // Récupérer la somme des montants de HistoriqueClientSolde pour ce client
-        $historiqueSum = HistoriqueClientSolde::where('client_id', $clientId)
-            ->sum('amount');
-
-        // Calculer le nouveau solde en soustrayant amount_solde de la somme des historiques
-        //$newAmountSolde = $amount_solde - $historiqueSum ;
-
-        $client->amount_due = $amount_due;
-        $client->amount_payment = $amount_payment;
-        $client->amount_solde = $amount_solde;
-        $client->save();
-
-        // Enregistrer l'historique de rétablissement de la comptabilité
-        AccountingHistory::create([
-            'user_id' => Auth::id(),
-            'client_id' => $client->id,
-            'amount_due' => $amount_due,
-            'amount_payment' => $amount_payment,
-            'amount_solde' => $amount_payment,
-            'notes' => 'Rétablissement de la comptabilité par ' . Auth::user()->email,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Montants du client mis à jour avec succès',
-            'client' => $client
-        ]);
-    }
 
     /**
      * Affiche l'historique des rétablissements de comptabilité
@@ -375,12 +294,14 @@ class ClientController extends Controller
             }], 'amount')
             ->get()
             ->map(function ($client) {
+                $totalInvoices = (float) ($client->total_invoices ?? 0);
+                $totalPayments = (float) ($client->total_payments ?? 0);
                 return [
                     'id'            => $client->id,
                     'name'          => $client->name,
-                    'total_invoices'=> $client->total_invoices ?? 0,
-                    'total_paid'    => $client->total_payments ?? 0,
-                    'remaining_due' => $client->amount_solde,
+                    'total_invoices'=> $totalInvoices,
+                    'total_paid'    => $totalPayments,
+                    'remaining_due' => $totalInvoices - $totalPayments,
                 ];
             })
             ->filter(fn ($c) => $c['remaining_due'] != 0)

@@ -142,7 +142,7 @@
                                                 </td>
                                                 <td>
                                                     <span>
-                                                    {{ index === invoices.length - 1 ? formatTotalPrice(client.amount_solde) : formatTotalPrice(invoice.cumul) }}
+                                                    {{ formatTotalPrice(invoice.cumul) }}
                                                     </span>
 
                                                 </td>

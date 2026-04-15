@@ -12,28 +12,26 @@ class Client extends Model
 {
     use HasFactory, HasSyncUuid, SoftDeletes;
 
-    protected $fillable = ['name', 'slug','address', 'phone', 'email','amount_due','amount_solde','amount_payment'];
+    protected $fillable = ['name', 'slug', 'address', 'phone', 'email'];
+
+    public function getAmountDueAttribute(): float
+    {
+        return (float) $this->transactions()->where('type', 'invoice')->sum('amount');
+    }
+
+    public function getAmountPaymentAttribute(): float
+    {
+        return (float) $this->transactions()->where('type', 'payment')->sum('amount');
+    }
+
+    public function getAmountSoldeAttribute(): float
+    {
+        return $this->getAmountDueAttribute() - $this->getAmountPaymentAttribute();
+    }
 
     public function transactions()
     {
         return $this->hasMany(Transaction::class);
-    }
-
-    /**
-     * Calcul du solde du client.
-     * On additionne toutes les factures et on soustrait tous les paiements.
-     */
-    public function getBalanceAttribute()
-    {
-        $invoices = $this->transactions()
-            ->where('type', 'invoice')
-            ->sum('amount');
-
-        $payments = $this->transactions()
-            ->where('type', 'payment')
-            ->sum('amount');
-
-        return $invoices - $payments;
     }
 
     // Génération automatique du slug lors de l'enregistrement

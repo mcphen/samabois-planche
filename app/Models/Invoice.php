@@ -85,24 +85,6 @@ class Invoice extends Model
             'transaction_date' => $this->date,
         ]);
 
-        $client = Client::where('id',$this->client_id)->first();
-        $this->updateAmountClient($client,$client->id);
-
-
-    }
-
-    private function updateAmountClient(Client $client, $clientId){
-        $clients = Client::whereHas('transactions') // Clients ayant au moins une transaction
-        ->withSum(['transactions as total_invoices' => function ($query) {
-            $query->where('type', 'invoice');
-        }], 'amount')
-            ->withSum(['transactions as total_payments' => function ($query) {
-                $query->where('type', 'payment');
-            }], 'amount')
-            ->where('id',$clientId)->first();
-        $client->amount_due = $clients->total_invoices;
-        $client->amount_solde = $clients->balance;
-        $client->save();
     }
 
     public function payments()
