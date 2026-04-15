@@ -41,7 +41,7 @@
                     <div class="body">
                         <div class="invoice-top clearfix">
                             <div class="info">
-                                <h6>Client : {{ invoice.client.name }}</h6>
+                                <h6>Client : <a :href="`/admin/clients/${invoice.client.id}/consultation`">{{ invoice.client.name }}</a></h6>
                                 <p v-if="isPlancheInvoice" class="mb-0">
                                     BL source : {{ invoice.planche_bon_livraison?.numero_bl || '-' }}
                                 </p>

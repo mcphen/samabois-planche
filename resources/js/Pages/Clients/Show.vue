@@ -126,17 +126,17 @@
                                                 <td>{{formatDate(invoice.date)}} </td>
                                                 <td>
                                                     <a v-if="invoice.facture"
-                                                        :href="'/admin/invoices/'+invoice.facture.id+'/consultation'">
-                                                        {{  invoice.facture.matricule }}
+                                                        :href="'/admin/planche-bons-livraison/'+invoice.facture.id">
+                                                        {{ invoice.facture.numero_bl }}
                                                     </a>
                                                 </td>
                                                 <td>
-                                                    <span>
+                                                    <span v-if="invoice.invoice !== null">
                                                     {{ formatTotalPrice(invoice.invoice)  }}
                                                     </span>
                                                 </td>
                                                 <td>
-                                                    <span v-if="invoice.payment!==0">
+                                                    <span v-if="invoice.payment !== null">
                                                     {{ formatTotalPrice(invoice.payment)  }}
                                                     </span>
                                                 </td>
@@ -148,7 +148,7 @@
                                                 </td>
                                                 <td>
                                                     <div v-if="invoice.type==='invoice' && invoice.facture">
-                                                        <a :href="'/admin/invoices/'+invoice.facture.id+'/consultation'"
+                                                        <a :href="'/admin/planche-bons-livraison/'+invoice.facture.id"
                                                            class="btn btn-primary btn-sm">
                                                             <i class="fa fa-eye"></i> Voir la facture
                                                         </a>

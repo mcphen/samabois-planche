@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\FinanceCorrection;
 use App\Models\HistoriqueClientSolde;
 use App\Models\Payment;
+use App\Models\PlancheBonLivraison;
 use App\Models\Transaction;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -31,12 +32,11 @@ class PaymentController extends Controller
 
         //dd($remainingAmount);
 
-        // Récupérer les factures non soldées, triées par date
-        $invoices = $client->invoices()->where('status', '!=', 'validated')->orderBy('date')->get();
-
-        /*if ($invoices->isEmpty()) {
-            return response()->json(['message' => 'Aucune facture en attente de paiement.'], 400);
-        }*/
+        // Récupérer les bons de livraison non soldés, triés par date
+        $bonsLivraison = PlancheBonLivraison::where('client_id', $client->id)
+            ->where('status', '!=', 'validated')
+            ->orderBy('date_livraison')
+            ->get();
 
         // Créer un enregistrement de paiement
         $payment = Payment::create([
@@ -52,28 +52,19 @@ class PaymentController extends Controller
             'transaction_date' => $request->transaction_date,
         ]);
 
-
-        if(!$invoices->isEmpty()){
-            foreach ($invoices as $invoice) {
+        if (!$bonsLivraison->isEmpty()) {
+            foreach ($bonsLivraison as $bl) {
                 if ($remainingAmount <= 0) break;
 
-                $invoiceDue = $invoice->total_price - $invoice->payments()->sum('amount_paid');
+                $blDue = (float) $bl->montant - (float) $bl->montant_solde;
 
-                if ($invoiceDue > 0) {
-                    $paidAmount = min($remainingAmount, $invoiceDue);
+                if ($blDue > 0) {
+                    $paidAmount = min($remainingAmount, $blDue);
                     $remainingAmount -= $paidAmount;
 
-                    // Enregistrer le paiement pour cette facture
-                    $invoice->payments()->attach($payment->id, ['amount_paid' => $paidAmount]);
-
-                    // Mettre à jour le montant payé et statut
-                    $invoice->montant_solde += $paidAmount;
-                    if ($invoice->montant_solde >= $invoice->total_price) {
-                        $invoice->status = 'validated'; // Facture soldée
-                    } else {
-                        $invoice->status = 'pending'; // Facture partiellement payée
-                    }
-                    $invoice->save();
+                    $bl->montant_solde += $paidAmount;
+                    $bl->status = $bl->montant_solde >= $bl->montant ? 'validated' : 'pending';
+                    $bl->save();
                 }
             }
         }

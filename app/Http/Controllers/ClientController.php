@@ -6,6 +6,7 @@ use App\Models\AccountingHistory;
 use App\Models\Client;
 use App\Models\HistoriqueClientSolde;
 use App\Models\Invoice;
+use App\Models\PlancheBonLivraison;
 use App\Models\InvoicePayment;
 use App\Models\Transaction;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -29,19 +30,15 @@ class ClientController extends Controller
     // Vue principale pour l'interface
     public function show(Client $client)
     {
-        // Uniquement les factures liées aux planches (planche_bon_livraison_id non null)
-        $totalInvoice = Invoice::where('client_id', $client->id)
-            ->whereNotNull('planche_bon_livraison_id')
+        $totalInvoice = PlancheBonLivraison::where('client_id', $client->id)
             ->where('status', '!=', 'canceled')
             ->count();
 
-        // Montant total facturé planches
         $totalDue = Transaction::where('client_id', $client->id)
             ->where('type', 'invoice')
-            ->whereHas('invoice', fn($q) => $q->whereNotNull('planche_bon_livraison_id'))
+            ->whereNotNull('planche_bon_livraison_id')
             ->sum('amount');
 
-        // Montant total payé (les paiements ne sont pas liés à un type de facture spécifique)
         $totalPaid = Transaction::where('client_id', $client->id)
             ->where('type', 'payment')
             ->sum('amount');
@@ -122,298 +119,89 @@ class ClientController extends Controller
 
     public function fetchTransactionPaiement(Client $client)
     {
-        // Uniquement les transactions planches :
-        // - paiements (type = payment) : toujours inclus
-        // - factures (type = invoice) : seulement si la facture liée concerne les planches
-        $transactions = Transaction::with('invoice')
+        $transactions = Transaction::with('plancheBonLivraison')
             ->where('client_id', $client->id)
             ->where(function ($q) {
                 $q->where('type', 'payment')
                   ->orWhere(function ($q2) {
                       $q2->where('type', 'invoice')
-                         ->whereHas('invoice', fn($q3) => $q3->whereNotNull('planche_bon_livraison_id'));
+                          ->whereNotNull('planche_bon_livraison_id');
                   });
             })
             ->orderBy('transaction_date', 'asc')
             ->get();
 
-
-        /**
-         * Si vous souhaitez calculer un solde « cumulé » au fil des lignes,
-         * vous pouvez le faire ici en construisant un tableau intermédiaire.
-         */
         $runningBalance = 0;
         $data = [];
 
         foreach ($transactions as $transaction) {
+            $montantFacture = null;
+
             if ($transaction->type === 'invoice') {
-                $runningBalance += $transaction->amount;
+                $montantFacture = (float) (
+                    $transaction->plancheBonLivraison?->montant
+                    ?? $transaction->amount
+                );
+                $runningBalance += $montantFacture;
             } else {
-                // type = payment
                 $runningBalance -= $transaction->amount;
             }
 
             $data[] = [
-                'id'       => $transaction->id,
-                'date'       => $transaction->transaction_date,
-                'invoice'    => $transaction->type === 'invoice' ? $transaction->amount : null,
-                'payment'    => $transaction->type === 'payment' ? $transaction->amount : null,
-                'cumul'      => $runningBalance,
-                'facture'   => $transaction->invoice,
-                'type'     => $transaction->type,
-                'isSolde'  => (bool) $transaction->isSolde,
+                'id'      => $transaction->id,
+                'date'    => $transaction->transaction_date,
+                'invoice' => $montantFacture,
+                'payment' => $transaction->type === 'payment' ? $transaction->amount : null,
+                'cumul'   => $runningBalance,
+                'facture' => $transaction->plancheBonLivraison,
+                'type'    => $transaction->type,
+                'isSolde' => (bool) $transaction->isSolde,
             ];
         }
 
-        //dd($data);
-
         return response()->json($data);
-
     }
 
     public function geratePDF(Client $client)
     {
-        // Même filtre planches que fetchTransactionPaiement
-        $transactions = Transaction::with('invoice')
+        $transactions = Transaction::with('plancheBonLivraison')
             ->where('client_id', $client->id)
             ->where(function ($q) {
                 $q->where('type', 'payment')
                   ->orWhere(function ($q2) {
                       $q2->where('type', 'invoice')
-                         ->whereHas('invoice', fn($q3) => $q3->whereNotNull('planche_bon_livraison_id'));
+                          ->whereNotNull('planche_bon_livraison_id');
                   });
             })
             ->orderBy('transaction_date', 'asc')
             ->get();
 
-
-        /**
-         * Si vous souhaitez calculer un solde « cumulé » au fil des lignes,
-         * vous pouvez le faire ici en construisant un tableau intermédiaire.
-         */
         $runningBalance = 0;
         $data = [];
 
         foreach ($transactions as $transaction) {
+            $montantFacture = null;
             if ($transaction->type === 'invoice') {
-                $runningBalance += $transaction->amount;
+                $montantFacture = (float) (
+                    $transaction->plancheBonLivraison?->montant ?? $transaction->amount
+                );
+                $runningBalance += $montantFacture;
             } else {
-                // type = payment
                 $runningBalance -= $transaction->amount;
             }
 
             $data[] = [
-                'date'       => $transaction->transaction_date,
-                'invoice'    => $transaction->type === 'invoice' ? $transaction->amount : null,
-                'payment'    => $transaction->type === 'payment' ? $transaction->amount : null,
-                'cumul'      => $runningBalance,
-                'facture'   => $transaction->invoice,
-                'isSolde'    => (bool) $transaction->isSolde,
+                'date'    => $transaction->transaction_date,
+                'invoice' => $montantFacture,
+                'payment' => $transaction->type === 'payment' ? $transaction->amount : null,
+                'cumul'   => $runningBalance,
+                'facture' => $transaction->plancheBonLivraison,
+                'isSolde' => (bool) $transaction->isSolde,
             ];
         }
 
-        //dd($data);
-
-        // Générer le PDF
-        $pdf = Pdf::loadView('pdf.facture_client', compact('data','client'));
-
+        $pdf = Pdf::loadView('pdf.facture_client', compact('data', 'client'));
         return $pdf->stream('historique_caisse.pdf');
-
-    }
-
-    public function fetchInvoicesPaiement(Client $client)
-    {
-        $invoices = InvoicePayment::with('invoice')->whereHas('invoice',function($q) use($client){
-            $q->where(['client_id'=>$client->id]);
-        })->paginate(25);
-
-        return response()->json($invoices);
-
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'address' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
-        ]);
-
-        $client = Client::create([
-            'name' => $request->name,
-            'slug' => Str::slug($request->name),
-            'address' => $request->address,
-            'phone' => $request->phone,
-            'email' => $request->email,
-        ]);
-
-        return response()->json(['message' => 'Client ajouté avec succès.', 'client' => $client]);
-    }
-    public function destroy(Client $client)
-    {
-
-        $client->delete();
-
-        return response()->json(['message' => 'Client supprimé avec succès.']);
-    }
-
-    public function showPortefeuille(Client $client)
-    {
-        $client->load(['invoices' => function ($query) {
-            $query->where('status', '!=', 'canceled')->orderBy('date');
-        }]);
-
-        // Calculer le total à payer
-        $totalAPayer = $client->invoices->sum(fn($invoice) => $invoice->total_price - $invoice->montant_solde);
-
-        return Inertia::render('Clients/Portefeuille', [
-            'client' => $client,
-            'totalAPayer' => $totalAPayer
-        ]);
-    }
-
-    public function enregistrerPaiement(Request $request, Client $client)
-    {
-        $request->validate([
-            'montant' => 'required|numeric|min:1',
-        ]);
-
-        $montantPaye = $request->montant;
-
-        // Vérifier si le client a un crédit disponible
-        if ($client->credit_disponible > 0) {
-            $creditUtilise = min($client->credit_disponible, $montantPaye);
-            $montantPaye -= $creditUtilise;
-            $client->update([
-                'credit_disponible' => $client->credit_disponible - $creditUtilise
-            ]);
-        }
-
-        // Répartir le paiement sur les factures
-        $factures = $client->invoices()->where('status', '!=', 'canceled')->orderBy('date')->get();
-
-        foreach ($factures as $facture) {
-            $resteAFacturer = $facture->total_price - $facture->montant_solde;
-
-            if ($montantPaye <= 0) {
-                break;
-            }
-
-            if ($montantPaye >= $resteAFacturer) {
-                $facture->update([
-                    'montant_solde' => $facture->total_price,
-                    'status' => 'validated'
-                ]);
-                $montantPaye -= $resteAFacturer;
-            } else {
-                $facture->update([
-                    'montant_solde' => $facture->montant_solde + $montantPaye
-                ]);
-                $montantPaye = 0;
-            }
-        }
-
-        // Si un reste après paiement, l'ajouter en crédit client
-        if ($montantPaye > 0) {
-            $client->update([
-                'credit_disponible' => $client->credit_disponible + $montantPaye
-            ]);
-        }
-
-        return redirect()->route('clients.portefeuille', $client->id);
-    }
-
-
-
-    /**
-     * Récupère les comptes clients avec des soldes dus
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    private function getClientsWithBalances()
-    {
-        return Client::whereHas('invoices', function ($query) {
-                $query->whereNotNull('planche_bon_livraison_id');
-            })
-            ->withSum(['transactions as total_invoices' => function ($query) {
-                $query->where('type', 'invoice');
-            }], 'amount')
-            ->withSum(['transactions as total_payments' => function ($query) {
-                $query->where('type', 'payment');
-            }], 'amount')
-            ->get()
-            ->map(function ($client) {
-                return [
-                    'id' => $client->id,
-                    'uuid' => $client->uuid,
-                    'name' => $client->name,
-                    'total_invoices' => $client->total_invoices ?? 0,
-                    'total_paid' => $client->total_payments ?? 0,
-                    'remaining_due' => $client->amount_solde, // Utilisation de l'attribut balance
-                ];
-            })
-            ->filter(function ($client) {
-                return $client['remaining_due'] != 0; // Exclure les clients sans dette
-            })
-            ->sortByDesc('remaining_due') // Trier du plus grand au plus petit
-            ->values(); // Réindexer les clés du tableau
-    }
-
-    /**
-     * Récupère les comptes clients avec des soldes à zéro (comptes soldés)
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    private function getClientsWithZeroBalances()
-    {
-        return Client::whereHas('invoices', function ($query) {
-                $query->whereNotNull('planche_bon_livraison_id');
-            })
-            ->withSum(['transactions as total_invoices' => function ($query) {
-                $query->where('type', 'invoice');
-            }], 'amount')
-            ->withSum(['transactions as total_payments' => function ($query) {
-                $query->where('type', 'payment');
-            }], 'amount')
-            ->get()
-            ->map(function ($client) {
-                return [
-                    'id' => $client->id,
-                    'uuid' => $client->uuid,
-                    'name' => $client->name,
-                    'total_invoices' => $client->total_invoices ?? 0,
-                    'total_paid' => $client->total_payments ?? 0,
-                    'remaining_due' => $client->amount_solde, // Utilisation de l'attribut balance
-                ];
-            })
-            ->filter(function ($client) {
-                return $client['remaining_due'] == 0; // Inclure uniquement les clients avec solde à zéro
-            })
-            ->sortByDesc('total_invoices') // Trier par montant total facturé
-            ->values(); // Réindexer les clés du tableau
-    }
-
-    /**
-     * Retourne les comptes clients avec des soldes dus au format JSON
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getClientAccounts()
-    {
-        $filteredClients = $this->getClientsWithBalances();
-        return response()->json($filteredClients);
-    }
-
-    /**
-     * Retourne les comptes clients soldés (solde à zéro) au format JSON
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function getSettledClientAccounts()
-    {
-        $settledClients = $this->getClientsWithZeroBalances();
-        return response()->json($settledClients);
     }
 
     /**
@@ -573,7 +361,66 @@ class ClientController extends Controller
 
         return response()->json($history);
     }
+
+    private function getClientsWithBalances()
+    {
+        return Client::whereHas('transactions', function ($query) {
+                $query->whereNotNull('planche_bon_livraison_id');
+            })
+            ->withSum(['transactions as total_invoices' => function ($query) {
+                $query->where('type', 'invoice')->whereNotNull('planche_bon_livraison_id');
+            }], 'amount')
+            ->withSum(['transactions as total_payments' => function ($query) {
+                $query->where('type', 'payment');
+            }], 'amount')
+            ->get()
+            ->map(function ($client) {
+                return [
+                    'id'            => $client->id,
+                    'name'          => $client->name,
+                    'total_invoices'=> $client->total_invoices ?? 0,
+                    'total_paid'    => $client->total_payments ?? 0,
+                    'remaining_due' => $client->amount_solde,
+                ];
+            })
+            ->filter(fn ($c) => $c['remaining_due'] != 0)
+            ->sortByDesc('remaining_due')
+            ->values();
+    }
+
+    private function getClientsWithZeroBalances()
+    {
+        return Client::whereHas('transactions', function ($query) {
+                $query->whereNotNull('planche_bon_livraison_id');
+            })
+            ->withSum(['transactions as total_invoices' => function ($query) {
+                $query->where('type', 'invoice')->whereNotNull('planche_bon_livraison_id');
+            }], 'amount')
+            ->withSum(['transactions as total_payments' => function ($query) {
+                $query->where('type', 'payment');
+            }], 'amount')
+            ->get()
+            ->map(function ($client) {
+                return [
+                    'id'            => $client->id,
+                    'name'          => $client->name,
+                    'total_invoices'=> $client->total_invoices ?? 0,
+                    'total_paid'    => $client->total_payments ?? 0,
+                    'remaining_due' => $client->amount_solde,
+                ];
+            })
+            ->filter(fn ($c) => $c['remaining_due'] == 0)
+            ->sortByDesc('total_invoices')
+            ->values();
+    }
+
+    public function getClientAccounts()
+    {
+        return response()->json($this->getClientsWithBalances());
+    }
+
+    public function getSettledClientAccounts()
+    {
+        return response()->json($this->getClientsWithZeroBalances());
+    }
 }
-
-
-

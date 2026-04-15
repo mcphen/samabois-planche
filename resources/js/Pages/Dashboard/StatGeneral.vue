@@ -79,7 +79,7 @@ const stats = computed(() => {
         },
         {
             key:       "bons",
-            label:     "Bons de livraison",
+            label:     "Factures",
             icon:      "fa fa-file-text",
             color:     "#fd7e14",
             formatted: d ? (d.nb_bons_livraison ?? 0) + " bons" : "—",

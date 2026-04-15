@@ -37,7 +37,7 @@ class ResetFinancialData extends Command
         $this->line('');
         $this->line('Les données suivantes seront <fg=yellow>réinitialisées</> :');
         $this->line('  • Soldes clients (amount_payment, amount_solde → 0)');
-        $this->line('  • Factures non annulées         → montant_solde = 0, status = pending');
+        $this->line('  • BL non annulés                → montant_solde = 0, status = pending');
         $this->line('');
 
         if (! $this->confirm('Confirmer la suppression ?', false)) {
@@ -100,14 +100,14 @@ class ResetFinancialData extends Command
             ]);
             $this->line('  ✓ clients : amount_payment = 0, amount_solde = amount_due');
 
-            // 11. Réinitialisation des factures non annulées
-            DB::table('invoices')
-                ->where('status', '!=', 'canceled')
+            // 11. Réinitialisation des bons de livraison non annulés
+            DB::table('planche_bons_livraison')
+                ->where('statut', '!=', 'annule')
                 ->update([
                     'montant_solde' => 0,
                     'status'        => 'pending',
                 ]);
-            $this->line('  ✓ invoices (non annulées) : montant_solde = 0, status = pending');
+            $this->line('  ✓ planche_bons_livraison (non annulés) : montant_solde = 0, status = pending');
         });
 
         $this->line('');

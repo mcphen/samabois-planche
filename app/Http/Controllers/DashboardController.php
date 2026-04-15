@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Caisse;
 use App\Models\CaisseTransaction;
 use App\Models\Client;
-use App\Models\Invoice;
 use App\Models\PlancheBonLivraison;
 use App\Models\Transaction;
 use App\Services\SyncService;
@@ -36,15 +35,15 @@ class DashboardController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function getStats()
     {
-        // Chiffre d'affaires : transactions invoice liées à des factures planches
+        // Chiffre d'affaires : transactions invoice liées directement à des BL planches
         $chiffreAffaire = Transaction::where('type', 'invoice')
             ->where('old_transaction', 0)
-            ->whereHas('invoice', fn ($q) => $q->whereNotNull('planche_bon_livraison_id'))
+            ->whereNotNull('planche_bon_livraison_id')
             ->sum('amount');
 
         $chiffreAffaireOld = Transaction::where('type', 'invoice')
             ->where('old_transaction', 1)
-            ->whereHas('invoice', fn ($q) => $q->whereNotNull('planche_bon_livraison_id'))
+            ->whereNotNull('planche_bon_livraison_id')
             ->sum('amount');
 
         $montantPaye  = Transaction::where('type', 'payment')->sum('amount');
@@ -73,15 +72,14 @@ class DashboardController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function getChiffreAffaireBeneficeParMois(Request $request)
     {
-        $query = Invoice::whereNotNull('planche_bon_livraison_id')
-            ->where('status', '!=', 'canceled')
+        $query = PlancheBonLivraison::where('statut', '!=', 'annule')
             ->select(
-                DB::raw('YEAR(date) as year'),
-                DB::raw('MONTH(date) as month'),
-                DB::raw('SUM(total_price) as total_revenue')
+                DB::raw('YEAR(date_livraison) as year'),
+                DB::raw('MONTH(date_livraison) as month'),
+                DB::raw('SUM(montant) as total_revenue')
             )
-            ->groupBy(DB::raw('YEAR(date), MONTH(date)'))
-            ->orderBy(DB::raw('YEAR(date), MONTH(date)'));
+            ->groupBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'))
+            ->orderBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'));
 
         if ($request->filled('client_id')) {
             $query->where('client_id', $request->client_id);
@@ -98,15 +96,14 @@ class DashboardController extends Controller
 
     public function exportChiffreAffaireBeneficePDF(Request $request)
     {
-        $query = Invoice::whereNotNull('planche_bon_livraison_id')
-            ->where('status', '!=', 'canceled')
+        $query = PlancheBonLivraison::where('statut', '!=', 'annule')
             ->select(
-                DB::raw('YEAR(date) as year'),
-                DB::raw('MONTH(date) as month'),
-                DB::raw('SUM(total_price) as total_revenue')
+                DB::raw('YEAR(date_livraison) as year'),
+                DB::raw('MONTH(date_livraison) as month'),
+                DB::raw('SUM(montant) as total_revenue')
             )
-            ->groupBy(DB::raw('YEAR(date), MONTH(date)'))
-            ->orderBy(DB::raw('YEAR(date), MONTH(date)'));
+            ->groupBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'))
+            ->orderBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'));
 
         if ($request->filled('client_id')) {
             $query->where('client_id', $request->client_id);
@@ -135,13 +132,12 @@ class DashboardController extends Controller
             $months[$date->format('Y-m')] = ['month' => $date->format('M Y'), 'total_revenue' => 0];
         }
 
-        $query = Invoice::whereNotNull('planche_bon_livraison_id')
-            ->where('status', '!=', 'canceled')
+        $query = PlancheBonLivraison::where('statut', '!=', 'annule')
             ->select(
-                DB::raw("DATE_FORMAT(date, '%Y-%m') as period"),
-                DB::raw('SUM(total_price) as total_revenue')
+                DB::raw("DATE_FORMAT(date_livraison, '%Y-%m') as period"),
+                DB::raw('SUM(montant) as total_revenue')
             )
-            ->where('date', '>=', $now->copy()->subMonths(6)->startOfMonth())
+            ->where('date_livraison', '>=', $now->copy()->subMonths(6)->startOfMonth())
             ->groupBy('period')
             ->orderBy('period', 'ASC');
 
@@ -166,11 +162,10 @@ class DashboardController extends Controller
         $query = Client::select(
             'clients.id',
             'clients.name',
-            DB::raw('SUM(invoices.total_price) as total_revenue')
+            DB::raw('SUM(pbl.montant) as total_revenue')
         )
-            ->join('invoices', 'clients.id', '=', 'invoices.client_id')
-            ->whereNotNull('invoices.planche_bon_livraison_id')
-            ->where('invoices.status', '!=', 'canceled')
+            ->join('planche_bons_livraison as pbl', 'clients.id', '=', 'pbl.client_id')
+            ->where('pbl.statut', '!=', 'annule')
             ->groupBy('clients.id', 'clients.name')
             ->orderByDesc('total_revenue');
 
@@ -189,20 +184,19 @@ class DashboardController extends Controller
         // KPIs globaux planches
         $totalCA   = Transaction::whereNull('deleted_at')
             ->where('type', 'invoice')
-            ->whereHas('invoice', fn ($q) => $q->whereNotNull('planche_bon_livraison_id'))
+            ->whereNotNull('planche_bon_livraison_id')
             ->sum('amount');
 
         $totalPaye = Transaction::whereNull('deleted_at')->where('type', 'payment')->sum('amount');
         $totalDu   = $totalCA - $totalPaye;
         $tauxRecouvrement = $totalCA > 0 ? round(($totalPaye / $totalCA) * 100, 1) : 0;
 
-        $nbClients = Client::whereHas('invoices', fn ($q) => $q->whereNotNull('planche_bon_livraison_id'))->count();
+        $nbClients = Client::whereHas('transactions', fn ($q) => $q->whereNotNull('planche_bon_livraison_id'))->count();
 
         $nbClientsAvecCreances = DB::table('clients')
             ->join('transactions', 'clients.id', '=', 'transactions.client_id')
-            ->join('invoices', 'transactions.invoice_id', '=', 'invoices.id')
             ->whereNull('transactions.deleted_at')
-            ->whereNotNull('invoices.planche_bon_livraison_id')
+            ->whereNotNull('transactions.planche_bon_livraison_id')
             ->select('clients.id')
             ->groupBy('clients.id')
             ->havingRaw("SUM(CASE WHEN transactions.type = 'invoice' THEN transactions.amount ELSE -transactions.amount END) > 0")
@@ -220,7 +214,7 @@ class DashboardController extends Controller
         // Factures planches par mois
         $facturesParMois = Transaction::whereNull('deleted_at')
             ->where('type', 'invoice')
-            ->whereHas('invoice', fn ($q) => $q->whereNotNull('planche_bon_livraison_id'))
+            ->whereNotNull('planche_bon_livraison_id')
             ->where('transaction_date', '>=', $sixAgo)
             ->selectRaw("DATE_FORMAT(transaction_date,'%Y-%m') as period, SUM(amount) as total")
             ->groupBy('period')->get();
@@ -244,21 +238,17 @@ class DashboardController extends Controller
                 $join->on('clients.id', '=', 'transactions.client_id')
                      ->whereNull('transactions.deleted_at');
             })
-            ->leftJoin('invoices', function ($join) {
-                $join->on('transactions.invoice_id', '=', 'invoices.id')
-                     ->whereNotNull('invoices.planche_bon_livraison_id');
-            })
             ->selectRaw("
                 clients.id,
                 clients.name,
                 clients.phone,
-                COALESCE(SUM(CASE WHEN transactions.type = 'invoice' AND invoices.planche_bon_livraison_id IS NOT NULL THEN transactions.amount ELSE 0 END), 0) AS total_ca,
+                COALESCE(SUM(CASE WHEN transactions.type = 'invoice' AND transactions.planche_bon_livraison_id IS NOT NULL THEN transactions.amount ELSE 0 END), 0) AS total_ca,
                 COALESCE(SUM(CASE WHEN transactions.type = 'payment' THEN transactions.amount ELSE 0 END), 0) AS total_paye,
-                COALESCE(SUM(CASE WHEN transactions.type = 'invoice' AND invoices.planche_bon_livraison_id IS NOT NULL THEN transactions.amount
+                COALESCE(SUM(CASE WHEN transactions.type = 'invoice' AND transactions.planche_bon_livraison_id IS NOT NULL THEN transactions.amount
                                   WHEN transactions.type = 'payment' THEN -transactions.amount
                                   ELSE 0 END), 0) AS montant_du,
-                COUNT(DISTINCT CASE WHEN transactions.type = 'invoice' AND invoices.planche_bon_livraison_id IS NOT NULL THEN transactions.invoice_id END) AS nb_factures,
-                MAX(CASE WHEN transactions.type = 'invoice' AND invoices.planche_bon_livraison_id IS NOT NULL THEN transactions.transaction_date END) AS derniere_facture
+                COUNT(DISTINCT CASE WHEN transactions.type = 'invoice' AND transactions.planche_bon_livraison_id IS NOT NULL THEN transactions.planche_bon_livraison_id END) AS nb_factures,
+                MAX(CASE WHEN transactions.type = 'invoice' AND transactions.planche_bon_livraison_id IS NOT NULL THEN transactions.transaction_date END) AS derniere_facture
             ")
             ->groupBy('clients.id', 'clients.name', 'clients.phone')
             ->orderByDesc('total_ca')

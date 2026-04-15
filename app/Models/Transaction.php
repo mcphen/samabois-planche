@@ -16,7 +16,10 @@ class Transaction extends Model
         'type',
         'isSolde',
         'amount',
-        'transaction_date','invoice_id','old_transaction'
+        'transaction_date',
+        'invoice_id',
+        'planche_bon_livraison_id',
+        'old_transaction',
     ];
 
     public function client()
@@ -26,7 +29,12 @@ class Transaction extends Model
 
     public function invoice()
     {
-        return $this->belongsTo(Invoice::class,'invoice_id');
+        return $this->belongsTo(Invoice::class, 'invoice_id');
+    }
+
+    public function plancheBonLivraison()
+    {
+        return $this->belongsTo(PlancheBonLivraison::class, 'planche_bon_livraison_id');
     }
 
     /**

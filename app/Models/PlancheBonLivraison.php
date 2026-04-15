@@ -16,11 +16,23 @@ class PlancheBonLivraison extends Model
         'numero_bl',
         'date_livraison',
         'statut',
+        'montant',
+        'montant_solde',
+        'status',
     ];
 
     protected $casts = [
         'date_livraison' => 'date',
+        'montant'        => 'decimal:2',
+        'montant_solde'  => 'decimal:2',
     ];
+
+    public function recalculerMontant(): void
+    {
+        $this->update([
+            'montant' => $this->lignes()->sum('prix_total'),
+        ]);
+    }
 
     public function lignes()
     {
@@ -32,9 +44,15 @@ class PlancheBonLivraison extends Model
         return $this->belongsTo(Client::class);
     }
 
-    public function invoice()
+    public function transactions()
     {
-        return $this->hasOne(Invoice::class, 'planche_bon_livraison_id');
+        return $this->hasMany(Transaction::class, 'planche_bon_livraison_id');
     }
 
+    public function transaction()
+    {
+        return $this->hasOne(Transaction::class, 'planche_bon_livraison_id')
+            ->where('type', 'invoice')
+            ->latest();
+    }
 }

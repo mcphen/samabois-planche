@@ -6,7 +6,6 @@ use App\Http\Requests\StorePlancheBonLivraisonRequest;
 use App\Http\Requests\UpdatePlancheBonLivraisonRequest;
 use App\Models\Client;
 use App\Models\Epaisseur;
-use App\Models\Invoice;
 use App\Models\PlancheBonLivraison;
 use App\Models\PlancheDetail;
 use App\Models\Supplier;
@@ -77,7 +76,6 @@ class PlancheBonLivraisonController extends Controller
     {
         $query = PlancheBonLivraison::query()
             ->with(['client:id,name'])
-            ->with(['invoice:id,planche_bon_livraison_id,matricule'])
             ->with($this->bonRelations())
             ->withCount('lignes')
             ->latest();
@@ -133,6 +131,16 @@ class PlancheBonLivraisonController extends Controller
                     ->all()
             );
 
+            $bonLivraison->recalculerMontant();
+
+            Transaction::create([
+                'client_id'                => $bonLivraison->client_id,
+                'type'                     => 'invoice',
+                'amount'                   => $bonLivraison->montant,
+                'transaction_date'         => $bonLivraison->date_livraison,
+                'planche_bon_livraison_id' => $bonLivraison->id,
+            ]);
+
             return $bonLivraison;
         });
 
@@ -162,13 +170,16 @@ class PlancheBonLivraisonController extends Controller
                     ->all()
             );
 
-            if ($plancheBonLivraison->invoice) {
-                $plancheBonLivraison->invoice->update([
-                    'client_id' => $request->integer('client_id'),
-                    'date' => $request->input('date_livraison'),
+            $plancheBonLivraison->recalculerMontant();
+
+            // Mettre à jour la transaction liée
+            $plancheBonLivraison->transactions()
+                ->where('type', 'invoice')
+                ->update([
+                    'client_id'        => $plancheBonLivraison->client_id,
+                    'amount'           => $plancheBonLivraison->montant,
+                    'transaction_date' => $plancheBonLivraison->date_livraison,
                 ]);
-                $plancheBonLivraison->invoice->updateTotalPrice();
-            }
 
             return $plancheBonLivraison->fresh();
         });
@@ -185,14 +196,8 @@ class PlancheBonLivraisonController extends Controller
     public function destroy(PlancheBonLivraison $plancheBonLivraison)
     {
         DB::transaction(function () use ($plancheBonLivraison) {
-            $plancheBonLivraison->loadMissing([
-                'invoice.client',
-                'invoice.items.articleItem',
-            ]);
-
-            if ($plancheBonLivraison->invoice) {
-                $this->cancelLinkedInvoice($plancheBonLivraison->invoice);
-            }
+            // Supprimer toutes les transactions liées
+            $plancheBonLivraison->transactions()->delete();
 
             $plancheBonLivraison->delete();
         });
@@ -209,7 +214,6 @@ class PlancheBonLivraisonController extends Controller
     {
         return [
             'client:id,name',
-            'invoice:id,planche_bon_livraison_id,matricule',
             'lignes:id,planche_bon_livraison_id,planche_detail_id,quantite_livree,prix_unitaire,prix_total',
             'lignes.plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
             'lignes.plancheDetail.couleur:id,code',
@@ -311,79 +315,23 @@ class PlancheBonLivraisonController extends Controller
         })->values();
 
         return [
-            'id' => $bonLivraison->id,
-            'client_id' => $bonLivraison->client_id,
-            'client_name' => $bonLivraison->client?->name,
-            'numero_bl' => $bonLivraison->numero_bl,
-            'date_livraison' => optional($bonLivraison->date_livraison)->format('Y-m-d'),
-            'statut' => $bonLivraison->statut,
-            'invoice_id' => $bonLivraison->invoice?->id,
-            'invoice_matricule' => $bonLivraison->invoice?->matricule,
-            'can_edit' => true,
-            'can_cancel' => true,
-            'lignes_count' => $lignes->count(),
+            'id'                     => $bonLivraison->id,
+            'client_id'              => $bonLivraison->client_id,
+            'client_name'            => $bonLivraison->client?->name,
+            'numero_bl'              => $bonLivraison->numero_bl,
+            'date_livraison'         => optional($bonLivraison->date_livraison)->format('Y-m-d'),
+            'statut'                 => $bonLivraison->statut,
+            'status'                 => $bonLivraison->status,
+            'montant_solde'          => (float) $bonLivraison->montant_solde,
+            'can_edit'               => true,
+            'can_cancel'             => true,
+            'lignes_count'           => $lignes->count(),
             'quantite_totale_livree' => $lignes->sum('quantite_livree'),
-            'montant_total' => (float) $lignes->sum('prix_total'),
-            'contrats' => $lignes->pluck('numero_contrat')->filter()->unique()->values(),
-            'fournisseurs' => $lignes->pluck('supplier_name')->filter()->unique()->values(),
-            'lignes' => $lignes,
+            'montant_total'          => (float) $lignes->sum('prix_total'),
+            'contrats'               => $lignes->pluck('numero_contrat')->filter()->unique()->values(),
+            'fournisseurs'           => $lignes->pluck('supplier_name')->filter()->unique()->values(),
+            'lignes'                 => $lignes,
         ];
-    }
-
-    private function cancelLinkedInvoice(Invoice $invoice): void
-    {
-        $montantSolde = (float) ($invoice->montant_solde ?? 0);
-        $client = $invoice->client;
-
-        $invoice->update([
-            'status' => 'canceled',
-            'montant_solde' => 0,
-        ]);
-
-        foreach ($invoice->items as $item) {
-            if ($item->articleItem) {
-                $item->articleItem->update(['indisponible' => 0]);
-            }
-
-            $item->delete();
-        }
-
-        if ($client) {
-            $facturesNonSoldees = $client->invoices()
-                ->where('status', 'pending')
-                ->orderBy('date')
-                ->get();
-
-            foreach ($facturesNonSoldees as $facture) {
-                $resteAFacturer = $facture->total_price - $facture->montant_solde;
-
-                if ($montantSolde <= 0) {
-                    break;
-                }
-
-                if ($montantSolde >= $resteAFacturer) {
-                    $facture->update([
-                        'montant_solde' => $facture->total_price,
-                        'status' => 'validated',
-                    ]);
-                    $montantSolde -= $resteAFacturer;
-                } else {
-                    $facture->update([
-                        'montant_solde' => $facture->montant_solde + $montantSolde,
-                    ]);
-                    $montantSolde = 0;
-                }
-            }
-
-            if ($montantSolde > 0) {
-                $client->update([
-                    'credit_disponible' => $client->credit_disponible + $montantSolde,
-                ]);
-            }
-        }
-
-        Transaction::query()->where('invoice_id', $invoice->id)->delete();
-        $invoice->delete();
     }
 
     private function mapBonLivraisonLinePayload(array $ligne): array

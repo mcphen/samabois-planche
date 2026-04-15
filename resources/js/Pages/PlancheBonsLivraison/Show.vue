@@ -35,7 +35,7 @@
                     <div class="body">
                         <div class="invoice-top clearfix">
                             <div class="info">
-                                <h6>Client : {{ bonLivraison.client_name || '-' }}</h6>
+                                <h6>Client : <a :href="`/admin/clients/${bonLivraison.client_id}/consultation`">{{ bonLivraison.client_name || '-' }}</a></h6>
                                 <p class="mb-0">Date de livraison : {{ bonLivraison.date_livraison || '-' }}</p>
                                 
                             </div>
@@ -96,7 +96,27 @@
                         <hr>
 
                         <div class="row clearfix">
-                            <div class="col-md-12 text-right">
+                            <div class="col-md-6">
+                                <table class="table table-sm" style="max-width: 400px;">
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Total facture</strong></td>
+                                            <td class="text-right">{{ formatCurrency(bonLivraison.montant_total) }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Montant payé</strong></td>
+                                            <td class="text-right text-success">{{ formatCurrency(bonLivraison.montant_solde) }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Reste à payer</strong></td>
+                                            <td class="text-right text-danger">
+                                                <strong>{{ formatCurrency(bonLivraison.montant_total - bonLivraison.montant_solde) }}</strong>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-md-6 text-right">
                                 <h3 class="mb-0 m-t-10">
                                     Total : {{ formatCurrency(bonLivraison.montant_total) }}
                                 </h3>
@@ -137,10 +157,7 @@ function editBonLivraison() {
 }
 
 function cancelBonLivraison() {
-    const hasLinkedInvoice = Boolean(props.bonLivraison.invoice_matricule);
-    const confirmationText = hasLinkedInvoice
-        ? `Cette facture planche et la facture associee ${props.bonLivraison.invoice_matricule} seront annulees. Les quantites livrees seront remises en stock.`
-        : 'Les quantites livrees de cette facture seront remises en stock.';
+    const confirmationText = 'Les quantites livrees de cette facture seront remises en stock.';
 
     Swal.fire({
         title: 'Etes-vous sur ?',
