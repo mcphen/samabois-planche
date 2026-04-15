@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePlancheBonLivraisonRequest;
 use App\Http\Requests\UpdatePlancheBonLivraisonRequest;
+use App\Models\Client;
 use App\Models\Epaisseur;
 use App\Models\PlancheBonLivraison;
 use App\Models\PlancheDetail;
