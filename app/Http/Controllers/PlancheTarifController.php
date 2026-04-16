@@ -43,7 +43,7 @@ class PlancheTarifController extends Controller
             'categorie'  => ['required', 'in:mate,semi_brillant,brillant'],
             'epaisseur'  => ['required', 'numeric', 'min:0.01'],
             'prix'       => ['required', 'numeric', 'min:0'],
-            'contrat_id' => ['nullable', 'integer', 'exists:contrats,id'],
+            'contrat_id' => ['required', 'integer', 'exists:contrats,id'],
         ]);
 
         try {
@@ -72,7 +72,7 @@ class PlancheTarifController extends Controller
             'categorie'    => ['required', 'in:mate,semi_brillant,brillant'],
             'epaisseur'    => ['required', 'numeric', 'min:0.01'],
             'prix'         => ['required', 'numeric', 'min:0'],
-            'contrat_id'   => ['nullable', 'integer', 'exists:contrats,id'],
+            'contrat_id'   => ['required', 'integer', 'exists:contrats,id'],
             'update_lignes' => ['boolean'],
         ]);
 

@@ -89,6 +89,14 @@
                         <i class="fa fa-exclamation-circle mr-2"></i>{{ formError }}
                     </div>
                     <div class="form-group">
+                        <label>Contrat *</label>
+                        <select v-model="form.contrat_id" class="form-control">
+                            <option :value="null">Sélectionner un contrat...</option>
+                            <option v-for="c in contrats" :key="c.id" :value="c.id">{{ c.numero }}</option>
+                        </select>
+                        <small v-if="formErrors.contrat_id" class="text-danger d-block mt-1">{{ formErrors.contrat_id[0] }}</small>
+                    </div>
+                    <div class="form-group">
                         <label>Catégorie *</label>
                         <select v-model="form.categorie" class="form-control">
                             <option value="">Sélectionner...</option>
@@ -110,14 +118,6 @@
                         <label>Prix (CFA) *</label>
                         <input v-model="form.prix" type="number" min="0" step="1" class="form-control" placeholder="Ex: 5000" />
                         <small v-if="formErrors.prix" class="text-danger d-block mt-1">{{ formErrors.prix[0] }}</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Contrat <span class="text-muted">(optionnel — laisser vide pour un tarif global)</span></label>
-                        <select v-model="form.contrat_id" class="form-control">
-                            <option :value="null">Tous les contrats (global)</option>
-                            <option v-for="c in contrats" :key="c.id" :value="c.id">{{ c.numero }}</option>
-                        </select>
-                        <small v-if="formErrors.contrat_id" class="text-danger d-block mt-1">{{ formErrors.contrat_id[0] }}</small>
                     </div>
                     <div v-if="editingTarif" class="form-group mb-0">
                         <div class="alert alert-warning py-2 px-3 mb-0" style="font-size:0.88rem;">
