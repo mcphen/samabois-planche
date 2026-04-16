@@ -91,8 +91,7 @@
                                         <td colspan="4">Total lignes : {{ bonLivraison.lignes_count }}</td>
                                         <td>{{ bonLivraison.quantite_totale_livree }}</td>
                                         <td></td>
-                                        <td></td>
-                                        <td></td>
+                                      
                                         <td :class="bonLivraison.benefice_total !== null ? (bonLivraison.benefice_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
                                             {{ bonLivraison.benefice_total !== null ? formatCurrency(bonLivraison.benefice_total) : '-' }}
                                         </td>

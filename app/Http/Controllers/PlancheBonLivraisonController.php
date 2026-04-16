@@ -259,6 +259,29 @@ class PlancheBonLivraisonController extends Controller
     public function destroy(PlancheBonLivraison $plancheBonLivraison)
     {
         DB::transaction(function () use ($plancheBonLivraison) {
+            // Capturer les données avant suppression
+            $plancheBonLivraison->load('lignes.plancheDetail:id,prix_de_revient');
+            $deletedData = [
+                'montant' => (float) $plancheBonLivraison->montant,
+                'numero_bl' => $plancheBonLivraison->numero_bl,
+                'lines' => $plancheBonLivraison->lignes->map(fn ($ligne) => [
+                    'planche_detail_id'  => $ligne->planche_detail_id,
+                    'quantite_livree'    => $ligne->quantite_livree,
+                    'prix_unitaire'      => (float) $ligne->prix_unitaire,
+                    'prix_total'         => (float) $ligne->prix_total,
+                    'prix_de_revient'    => $ligne->plancheDetail?->prix_de_revient,
+                ])->all(),
+            ];
+
+            // Enregistrer l'historique avant suppression
+            PlancheBenefitHistory::create([
+                'user_id' => auth()->id(),
+                'planche_bon_livraison_id' => $plancheBonLivraison->id,
+                'action' => 'bon_livraison_deleted',
+                'old_data' => $deletedData,
+                'notes' => 'Facture supprimée par ' . auth()->user()->name,
+            ]);
+
             // Supprimer toutes les transactions liées
             $plancheBonLivraison->transactions()->delete();
 

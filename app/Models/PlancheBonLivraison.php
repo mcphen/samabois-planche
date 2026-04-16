@@ -55,4 +55,9 @@ class PlancheBonLivraison extends Model
             ->where('type', 'invoice')
             ->latest();
     }
+
+    public function benefitHistories()
+    {
+        return $this->hasMany(PlancheBenefitHistory::class, 'planche_bon_livraison_id');
+    }
 }
