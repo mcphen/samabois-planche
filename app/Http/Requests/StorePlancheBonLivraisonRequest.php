@@ -20,6 +20,7 @@ class StorePlancheBonLivraisonRequest extends FormRequest
             'client_id' => ['required', 'integer', 'exists:clients,id'],
             'date_livraison' => ['required', 'date'],
             'lignes' => ['required', 'array', 'min:1'],
+            'lignes.*.contrat' => ['required', 'string', 'exists:contrats,numero'],
             'lignes.*.planche_detail_id' => ['required', 'integer', 'distinct', 'exists:planche_details,id'],
             'lignes.*.quantite_livree' => ['required', 'integer', 'min:1'],
             'lignes.*.prix_unitaire' => ['required', 'numeric', 'min:0'],

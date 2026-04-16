@@ -55,6 +55,7 @@
                             <table class="table table-hover">
                                 <thead class="thead-dark">
                                     <tr>
+                                        <th>Contrat</th>
                                         <th>Code couleur</th>
                                         <th>Categorie</th>
                                         <th>Epaisseur</th>
@@ -65,9 +66,10 @@
                                 </thead>
                                 <tbody>
                                     <tr v-if="!bonLivraison.lignes.length">
-                                        <td colspan="6" class="text-center py-4">Aucune ligne.</td>
+                                        <td colspan="7" class="text-center py-4">Aucune ligne.</td>
                                     </tr>
                                     <tr v-for="ligne in bonLivraison.lignes" :key="ligne.id">
+                                        <td>{{ ligne.numero_contrat || '-' }}</td>
                                         <td>
                                             <span class="badge badge-info">{{ ligne.code_couleur || '-' }}</span>
                                         </td>
@@ -84,7 +86,7 @@
                                 </tbody>
                                 <tfoot v-if="bonLivraison.lignes.length">
                                     <tr>
-                                        <td colspan="3">Total lignes : {{ bonLivraison.lignes_count }}</td>
+                                        <td colspan="4">Total lignes : {{ bonLivraison.lignes_count }}</td>
                                         <td>{{ bonLivraison.quantite_totale_livree }}</td>
                                         <td></td>
                                         <td></td>

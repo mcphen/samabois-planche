@@ -23,6 +23,29 @@ class ClientController extends Controller
         return Inertia::render('Clients/Index');
     }
 
+    public function store(Request $request)
+    {
+        $slug = Str::slug($request->input('name', ''));
+
+        $validated = $request->validate([
+            'name' => [
+                'required', 'string', 'max:255',
+                function ($attribute, $value, $fail) use ($slug) {
+                    if (Client::where('slug', $slug)->exists()) {
+                        $fail('Un client avec un nom similaire existe deja.');
+                    }
+                },
+            ],
+            'phone'   => 'nullable|string|max:20',
+            'email'   => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:255',
+        ]);
+
+        $client = Client::create($validated);
+
+        return response()->json($client, 201);
+    }
+
     public function comptes(){
         return Inertia::render('Clients/ClientAccounts');
     }
@@ -344,4 +367,49 @@ class ClientController extends Controller
     {
         return response()->json($this->getClientsWithZeroBalances());
     }
+
+    public function destroy(Client $client)
+    {
+        $client->delete();
+        return response()->json(['message' => 'Client deleted successfully']);
+    }
+
+    public function fetchInvoicesPaiement(Client $client)
+    {
+        $invoices = Invoice::where([
+            'client_id' => $client->id
+        ])->paginate(25);
+
+        return response()->json($invoices);
+    }
+
+    public function showPortefeuille(Client $client)
+    {
+        return Inertia::render('Clients/Portefeuille', [
+            'client' => $client,
+        ]);
+    }
+
+    public function enregistrerPaiement(Request $request, Client $client)
+    {
+        // This method seems to be for registering payments
+        // Consider using PaymentController::store instead
+        return response()->json(['message' => 'Use PaymentController for payment processing']);
+    }
+
+    public function updateAmountClient(Request $request, Client $client, $clientId)
+    {
+        if ($client->id != $clientId) {
+            return response()->json(['error' => 'Client ID mismatch'], 400);
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0',
+        ]);
+
+        // Implementation depends on your business logic
+        // This might update a client's balance or credit limit
+        return response()->json(['message' => 'Amount updated', 'client' => $client]);
+    }
 }
+

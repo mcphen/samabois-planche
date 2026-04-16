@@ -69,6 +69,19 @@ class ContratController extends Controller
         ]);
     }
 
+    public function checkNumero(Request $request)
+    {
+        $numero = $request->string('numero');
+        
+        if (!$numero || $numero->length() < 2) {
+            return response()->json(['valid' => false]);
+        }
+
+        $exists = Contrat::where('numero', (string) $numero)->exists();
+        
+        return response()->json(['valid' => $exists]);
+    }
+
     public function getContrats(Request $request)
     {
         $query = Contrat::query()

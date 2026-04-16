@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Contrat;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -14,6 +15,7 @@ class PlancheBonLivraisonLigne extends Model
     protected $fillable = [
         'planche_bon_livraison_id',
         'planche_detail_id',
+        'contrat_id',
         'quantite_livree',
         'prix_unitaire',
         'prix_total',
@@ -33,5 +35,10 @@ class PlancheBonLivraisonLigne extends Model
     public function plancheDetail()
     {
         return $this->belongsTo(PlancheDetail::class);
+    }
+
+    public function contrat()
+    {
+        return $this->belongsTo(Contrat::class);
     }
 }

@@ -113,6 +113,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Routes accessibles par admin ET comptable
         Route::prefix('/contrats')->group(function () {
             Route::get('/', [ContratController::class, 'index'])->name('contrats.index');
+            Route::get('/validate', [ContratController::class, 'checkNumero'])->name('contrats.validate');
             Route::get('/listes', [ContratController::class, 'getContrats'])->name('contrats.list');
             Route::get('/{contrat}', [ContratController::class, 'show'])->name('contrats.show');
             Route::put('/{contrat}', [ContratController::class, 'update'])->name('contrats.update');

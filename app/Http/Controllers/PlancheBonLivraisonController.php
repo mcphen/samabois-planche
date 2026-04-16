@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePlancheBonLivraisonRequest;
 use App\Http\Requests\UpdatePlancheBonLivraisonRequest;
 use App\Models\Client;
+use App\Models\Contrat;
 use App\Models\Epaisseur;
 use App\Models\PlancheBonLivraison;
 use App\Models\PlancheDetail;
@@ -28,8 +29,9 @@ class PlancheBonLivraisonController extends Controller
     {
         return Inertia::render('PlancheBonsLivraison/Create', [
             'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
-            'clients' => Client::query()->select('id', 'name')->orderBy('name')->get(),
+            'clients' => Client::query()->select('id', 'name', 'slug')->orderBy('name')->get(),
             'epaisseurs' => Epaisseur::query()->orderBy('intitule')->get(['id', 'intitule', 'slug']),
+            'contrats' => Contrat::query()->select('id', 'numero')->orderBy('numero')->get(),
             'availableDetails' => [],
         ]);
     }
@@ -55,7 +57,7 @@ class PlancheBonLivraisonController extends Controller
                 ? $this->availableDetailsCollection(null, '', '', '', '', $plancheBonLivraison->id)
                 : [],
             'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
-            'clients' => Client::query()->select('id', 'name')->orderBy('name')->get(),
+            'clients' => Client::query()->select('id', 'name', 'slug')->orderBy('name')->get(),
         ]);
     }
 
@@ -67,8 +69,9 @@ class PlancheBonLivraisonController extends Controller
             'bonLivraison' => $this->decorateBonLivraison($plancheBonLivraison),
             'availableDetails' => $this->availableDetailsCollection(null, '', '', '', '', $plancheBonLivraison->id),
             'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
-            'clients' => Client::query()->select('id', 'name')->orderBy('name')->get(),
+            'clients' => Client::query()->select('id', 'name', 'slug')->orderBy('name')->get(),
             'epaisseurs' => Epaisseur::query()->orderBy('intitule')->get(['id', 'intitule', 'slug']),
+            'contrats' => Contrat::query()->select('id', 'numero')->orderBy('numero')->get(),
         ]);
     }
 
@@ -93,9 +96,7 @@ class PlancheBonLivraisonController extends Controller
         }
 
         $bons = $query->paginate(20);
-        $bons->setCollection(
-            $bons->getCollection()->map(fn (PlancheBonLivraison $bon) => $this->decorateBonLivraison($bon))
-        );
+        $bons->getCollection()->transform(fn (PlancheBonLivraison $bon) => $this->decorateBonLivraison($bon));
 
         return response()->json($bons);
     }
@@ -109,14 +110,20 @@ class PlancheBonLivraisonController extends Controller
                 $request->string('code_couleur')->toString(),
                 $request->string('categorie')->toString(),
                 $request->string('epaisseur')->toString(),
-                $request->integer('exclude_bon_livraison_id') ?: null
+                $request->integer('exclude_bon_livraison_id') ?: null,
+                $request->integer('contrat_id') ?: null
             )
         );
     }
 
     public function store(StorePlancheBonLivraisonRequest $request)
     {
-        $bonLivraison = DB::transaction(function () use ($request) {
+        $validated = $request->validated();
+        $contratMap = Contrat::query()
+            ->whereIn('numero', collect($validated['lignes'])->pluck('contrat')->filter()->unique())
+            ->pluck('id', 'numero');
+
+        $bonLivraison = DB::transaction(function () use ($request, $contratMap) {
             $bonLivraison = PlancheBonLivraison::query()->create([
                 'client_id' => $request->integer('client_id'),
                 'numero_bl' => $this->generateNumeroBl(),
@@ -126,7 +133,7 @@ class PlancheBonLivraisonController extends Controller
 
             $bonLivraison->lignes()->createMany(
                 collect($request->validated('lignes'))
-                    ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne))
+                    ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne, $contratMap))
                     ->values()
                     ->all()
             );
@@ -162,10 +169,15 @@ class PlancheBonLivraisonController extends Controller
                 'statut' => $request->string('statut')->toString(),
             ]);
 
+            $validated = $request->validated();
+            $contratMap = Contrat::query()
+                ->whereIn('numero', collect($validated['lignes'])->pluck('contrat')->filter()->unique())
+                ->pluck('id', 'numero');
+
             $plancheBonLivraison->lignes()->delete();
             $plancheBonLivraison->lignes()->createMany(
-                collect($request->validated('lignes'))
-                    ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne))
+                collect($validated['lignes'])
+                    ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne, $contratMap))
                     ->values()
                     ->all()
             );
@@ -229,7 +241,8 @@ class PlancheBonLivraisonController extends Controller
         string $codeCouleur = '',
         string $categorie = '',
         string $epaisseur = '',
-        ?int $excludeBonLivraisonId = null
+        ?int $excludeBonLivraisonId = null,
+        ?int $contratId = null
     ) {
         $details = PlancheDetail::query()
             ->with([
@@ -245,12 +258,17 @@ class PlancheBonLivraisonController extends Controller
                     }
                 },
             ], 'quantite_livree')
-            ->when($supplierId, function ($query) use ($supplierId) {
+            ->when($contratId, function ($query) use ($contratId) {
+                $query->whereHas('planche.contrat', function ($contratQuery) use ($contratId) {
+                    $contratQuery->where('id', $contratId);
+                });
+            })
+            ->when(!$contratId && $supplierId, function ($query) use ($supplierId) {
                 $query->whereHas('planche.contrat', function ($contratQuery) use ($supplierId) {
                     $contratQuery->where('supplier_id', $supplierId);
                 });
             })
-            ->when(trim($numeroContrat) !== '', function ($query) use ($numeroContrat) {
+            ->when(!$contratId && trim($numeroContrat) !== '', function ($query) use ($numeroContrat) {
                 $query->whereHas('planche.contrat', function ($contratQuery) use ($numeroContrat) {
                     $contratQuery->where('numero', 'like', '%' . trim($numeroContrat) . '%');
                 });
@@ -334,13 +352,14 @@ class PlancheBonLivraisonController extends Controller
         ];
     }
 
-    private function mapBonLivraisonLinePayload(array $ligne): array
+    private function mapBonLivraisonLinePayload(array $ligne, $contratMap): array
     {
         $quantiteLivree = (int) $ligne['quantite_livree'];
         $prixUnitaire = round((float) $ligne['prix_unitaire'], 2);
 
         return [
             'planche_detail_id' => $ligne['planche_detail_id'],
+            'contrat_id' => $contratMap->get($ligne['contrat']),
             'quantite_livree' => $quantiteLivree,
             'prix_unitaire' => $prixUnitaire,
             'prix_total' => round($quantiteLivree * $prixUnitaire, 2),

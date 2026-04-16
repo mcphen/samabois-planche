@@ -82,6 +82,7 @@
                             <thead class="thead-light">
                                 <tr>
                                     <th style="width: 36px;" class="text-center">#</th>
+                                    <th style="min-width: 140px;">Contrat</th>
                                     <th style="min-width: 160px;">Code couleur</th>
                                     <th style="min-width: 150px;">Categorie</th>
                                     <th style="min-width: 130px;">Epaisseur</th>
@@ -95,15 +96,35 @@
                                     <td class="text-center align-middle text-muted small">{{ index + 1 }}</td>
 
                                     <td class="align-middle">
-                                        <PlancheColorInput
-                                            :model-value="ligne.code_couleur"
-                                            placeholder="Tapez un code..."
-                                            @update:modelValue="onCodeCouleurChange(index, $event)"
-                                        />
-                                        <small v-if="ligne.loadingCategories" class="text-muted">
-                                            <i class="fa fa-spinner fa-spin"></i> Chargement...
+                                        <select
+                                            v-model="ligne.contrat"
+                                            class="form-control form-control-sm"
+                                            @change="onLigneContratChange(index)"
+                                        >
+                                            <option value="">-- Contrat --</option>
+                                            <option v-for="c in contrats" :key="c.id" :value="c.numero">
+                                                {{ c.numero }}
+                                            </option>
+                                        </select>
+                                        <small v-if="ligne.loadingDetails" class="text-muted">
+                                            <i class="fa fa-spinner fa-spin"></i>
                                         </small>
-                                        <small v-else-if="ligne.code_couleur && !ligne.loadingCategories && !ligne.categoriesDisponibles.length && ligne.code_couleur.length >= 2" class="text-warning">
+                                    </td>
+
+                                    <td class="align-middle">
+                                        <input
+                                            v-model="ligne.code_couleur"
+                                            type="text"
+                                            :list="`couleurs-${index}`"
+                                            class="form-control form-control-sm"
+                                            placeholder="Code couleur..."
+                                            :disabled="!ligne.contrat || ligne.loadingDetails"
+                                            @input="onCodeCouleurChange(index)"
+                                        />
+                                        <datalist :id="`couleurs-${index}`">
+                                            <option v-for="code in ligne.couleurOptions" :key="code" :value="code" />
+                                        </datalist>
+                                        <small v-if="ligne.contrat && !ligne.loadingDetails && !ligne.couleurOptions.length" class="text-warning">
                                             Aucune disponibilite
                                         </small>
                                     </td>
@@ -120,9 +141,6 @@
                                                 {{ categorieLabel(cat) }}
                                             </option>
                                         </select>
-                                        <small v-if="ligne.loadingEpaisseurs" class="text-muted">
-                                            <i class="fa fa-spinner fa-spin"></i> Chargement...
-                                        </small>
                                     </td>
 
                                     <td class="align-middle">
@@ -330,6 +348,9 @@
                     </div>
                     <div class="modal-body">
                         <div v-if="modalError" class="alert alert-danger">{{ modalError }}</div>
+                        <div v-if="modalDuplicateWarning" class="alert alert-warning">
+                            Un client similaire existe deja : <strong>{{ modalDuplicateWarning }}</strong>
+                        </div>
                         <form @submit.prevent="storeClient">
                             <div class="form-group">
                                 <label>Nom *</label>
@@ -360,19 +381,19 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import axios from 'axios';
 import { Head, Link } from '@inertiajs/vue3';
 import { Inertia } from '@inertiajs/inertia';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
-import PlancheColorInput from '@/Components/PlancheColorInput.vue';
 
 const props = defineProps({
     suppliers: { type: Array, default: () => [] },
     clients: { type: Array, default: () => [] },
     epaisseurs: { type: Array, default: () => [] },
     availableDetails: { type: Array, default: () => [] },
+    contrats: { type: Array, default: () => [] },
 });
 
 const appName = import.meta.env.VITE_APP_NAME;
@@ -391,7 +412,26 @@ const errors = ref({});
 const showModal = ref(false);
 const modalSubmitting = ref(false);
 const modalError = ref('');
+const modalDuplicateWarning = ref('');
 const newClient = reactive({ name: '', address: '', phone: '', email: '' });
+
+function toSlug(str) {
+    return str.toLowerCase().trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+}
+
+watch(() => newClient.name, (name) => {
+    if (!name || name.trim().length < 2) {
+        modalDuplicateWarning.value = '';
+        return;
+    }
+    const slug = toSlug(name);
+    const match = props.clients.find((c) => c.slug === slug);
+    modalDuplicateWarning.value = match ? match.name : '';
+});
 
 const form = reactive({
     client_id: '',
@@ -403,12 +443,15 @@ const form = reactive({
 
 function createEmptyLigne() {
     return {
+        contrat: '',
+        contrat_id: null,
+        loadingDetails: false,
+        allDetails: [],
+        couleurOptions: [],
         code_couleur: '',
         categoriesDisponibles: [],
-        loadingCategories: false,
         categorie: '',
         epaisseurOptions: [],
-        loadingEpaisseurs: false,
         epaisseur: '',
         planche_detail_id: null,
         quantite_disponible: null,
@@ -433,11 +476,11 @@ const totalMontant = computed(() =>
 
 // --- Cascading selection ---
 
-const codeColorTimers = {};
-
-function onCodeCouleurChange(index, value) {
+function onLigneContratChange(index) {
     const ligne = lignes.value[index];
-    ligne.code_couleur = value;
+    ligne.allDetails = [];
+    ligne.couleurOptions = [];
+    ligne.code_couleur = '';
     ligne.categorie = '';
     ligne.categoriesDisponibles = [];
     ligne.epaisseur = '';
@@ -445,37 +488,66 @@ function onCodeCouleurChange(index, value) {
     ligne.planche_detail_id = null;
     ligne.quantite_disponible = null;
 
-    clearTimeout(codeColorTimers[index]);
+    if (!ligne.contrat) return;
 
-    if (!value || value.length < 2) return;
+    const contrat = props.contrats.find((c) => c.numero === ligne.contrat);
+    ligne.contrat_id = contrat ? contrat.id : null;
 
-    codeColorTimers[index] = setTimeout(() => {
-        fetchCategories(index);
-    }, 400);
+    fetchDetailsForContrat(index);
 }
 
-async function fetchCategories(index) {
+async function fetchDetailsForContrat(index) {
     const ligne = lignes.value[index];
-    ligne.loadingCategories = true;
+    if (!ligne.contrat_id) return;
 
+    ligne.loadingDetails = true;
     try {
         const response = await axios.get('/admin/planche-bons-livraison/details-disponibles', {
-            params: { code_couleur: ligne.code_couleur },
+            params: { contrat_id: ligne.contrat_id },
         });
         const details = response.data || [];
+        ligne.allDetails = details;
+
         const seen = new Set();
-        ligne.categoriesDisponibles = details
-            .map((d) => d.categorie)
+        ligne.couleurOptions = details
+            .map((d) => d.code_couleur)
             .filter((c) => c && !seen.has(c) && seen.add(c));
 
-        if (ligne.categoriesDisponibles.length === 1) {
-            ligne.categorie = ligne.categoriesDisponibles[0];
-            fetchEpaisseurs(index);
+        if (ligne.couleurOptions.length === 1) {
+            ligne.code_couleur = ligne.couleurOptions[0];
+            onCodeCouleurChange(index);
         }
     } catch {
         // ignore
     } finally {
-        ligne.loadingCategories = false;
+        ligne.loadingDetails = false;
+    }
+}
+
+function onCodeCouleurChange(index) {
+    const ligne = lignes.value[index];
+    ligne.categorie = '';
+    ligne.categoriesDisponibles = [];
+    ligne.epaisseur = '';
+    ligne.epaisseurOptions = [];
+    ligne.planche_detail_id = null;
+    ligne.quantite_disponible = null;
+
+    if (!ligne.code_couleur) return;
+
+    // Ne cascader que si la valeur correspond exactement a une option disponible
+    const isExactMatch = ligne.couleurOptions.includes(ligne.code_couleur);
+    if (!isExactMatch) return;
+
+    const filtered = ligne.allDetails.filter((d) => d.code_couleur === ligne.code_couleur);
+    const seen = new Set();
+    ligne.categoriesDisponibles = filtered
+        .map((d) => d.categorie)
+        .filter((c) => c && !seen.has(c) && seen.add(c));
+
+    if (ligne.categoriesDisponibles.length === 1) {
+        ligne.categorie = ligne.categoriesDisponibles[0];
+        onCategorieChange(index);
     }
 }
 
@@ -487,41 +559,37 @@ function onCategorieChange(index) {
     ligne.quantite_disponible = null;
 
     if (!ligne.categorie) return;
-    fetchEpaisseurs(index);
-}
 
-async function fetchEpaisseurs(index) {
-    const ligne = lignes.value[index];
-    if (!ligne.code_couleur || !ligne.categorie) return;
-    ligne.loadingEpaisseurs = true;
+    // Exclure les detail_id deja utilises dans d autres lignes
+    const usedDetailIds = new Set(
+        lignes.value
+            .filter((_, i) => i !== index)
+            .map((l) => l.planche_detail_id)
+            .filter(Boolean)
+    );
 
-    try {
-        const response = await axios.get('/admin/planche-bons-livraison/details-disponibles', {
-            params: { code_couleur: ligne.code_couleur, categorie: ligne.categorie },
-        });
-        const details = response.data || [];
-        const seen = new Set();
-        ligne.epaisseurOptions = details
-            .filter((d) => {
-                const key = String(d.epaisseur);
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            })
-            .map((d) => ({
-                detail_id: d.id,
-                epaisseur: d.epaisseur,
-                quantite_disponible: d.quantite_disponible,
-            }));
+    const seen = new Set();
+    ligne.epaisseurOptions = ligne.allDetails
+        .filter((d) =>
+            d.code_couleur === ligne.code_couleur &&
+            d.categorie === ligne.categorie &&
+            !usedDetailIds.has(d.id)
+        )
+        .filter((d) => {
+            const key = String(d.epaisseur);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        })
+        .map((d) => ({
+            detail_id: d.id,
+            epaisseur: d.epaisseur,
+            quantite_disponible: d.quantite_disponible,
+        }));
 
-        if (ligne.epaisseurOptions.length === 1) {
-            ligne.epaisseur = String(ligne.epaisseurOptions[0].epaisseur);
-            onEpaisseurChange(index);
-        }
-    } catch {
-        // ignore
-    } finally {
-        ligne.loadingEpaisseurs = false;
+    if (ligne.epaisseurOptions.length === 1) {
+        ligne.epaisseur = String(ligne.epaisseurOptions[0].epaisseur);
+        onEpaisseurChange(index);
     }
 }
 
@@ -684,6 +752,7 @@ function submitForm() {
         client_id: form.client_id ? Number(form.client_id) : null,
         date_livraison: form.date_livraison,
         lignes: validLignes.value.map((ligne) => ({
+            contrat: ligne.contrat,
             planche_detail_id: ligne.planche_detail_id,
             quantite_livree: Number(ligne.quantite_livree),
             prix_unitaire: Number(ligne.prix_unitaire || 0),
@@ -732,6 +801,7 @@ function formatCurrency(value) {
 function closeModal() {
     showModal.value = false;
     modalError.value = '';
+    modalDuplicateWarning.value = '';
     newClient.name = '';
     newClient.address = '';
     newClient.phone = '';
@@ -744,13 +814,15 @@ function storeClient() {
 
     axios.post('/admin/clients/store', newClient)
         .then((response) => {
-            const client = response.data.client;
+            const client = response.data;
             props.clients.push(client);
             form.client_id = String(client.id);
             closeModal();
         })
         .catch((error) => {
-            modalError.value = error.response?.data?.message || 'Erreur lors de l ajout du client.';
+            modalError.value = error.response?.data?.errors?.name?.[0]
+                || error.response?.data?.message
+                || 'Erreur lors de l ajout du client.';
         })
         .finally(() => {
             modalSubmitting.value = false;
