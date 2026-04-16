@@ -116,7 +116,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/validate', [ContratController::class, 'checkNumero'])->name('contrats.validate');
             Route::get('/listes', [ContratController::class, 'getContrats'])->name('contrats.list');
             Route::get('/{contrat}', [ContratController::class, 'show'])->name('contrats.show');
-            Route::put('/{contrat}', [ContratController::class, 'update'])->name('contrats.update');
+            Route::get('/{contrat}/benefit-history', [ContratController::class, 'getBenefitHistory'])->name('contrats.benefit-history');
+            Route::middleware('role:admin')->group(function () {
+                Route::put('/{contrat}', [ContratController::class, 'update'])->name('contrats.update');
+            });
         });
 
         Route::prefix('/planches')->group(function () {
@@ -128,9 +131,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{planche}', [PlancheController::class, 'show'])->name('planches.show');
             Route::post('/store', [PlancheController::class, 'store'])->name('planches.store');
             Route::post('/{planche}/lignes', [PlancheController::class, 'storeLine'])->name('planches.lines.store');
-            Route::put('/{planche}/lignes/{detail}', [PlancheController::class, 'updateLine'])->name('planches.lines.update');
-            Route::delete('/{planche}/lignes/{detail}', [PlancheController::class, 'destroyLine'])->name('planches.lines.destroy');
-            Route::delete('/{planche}/destroy', [PlancheController::class, 'destroy'])->name('planches.destroy');
+            Route::middleware('role:admin')->group(function () {
+                Route::put('/{planche}/lignes/{detail}', [PlancheController::class, 'updateLine'])->name('planches.lines.update');
+                Route::delete('/{planche}/lignes/{detail}', [PlancheController::class, 'destroyLine'])->name('planches.lines.destroy');
+                Route::delete('/{planche}/destroy', [PlancheController::class, 'destroy'])->name('planches.destroy');
+            });
         });
 
         Route::prefix('/planche-bons-livraison')->group(function () {
@@ -142,8 +147,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'show'])->name('planche-bons-livraison.show');
             Route::get('/{plancheBonLivraison}/generate-pdf', [PlancheBonLivraisonController::class, 'generatePDF'])->name('planche-bons-livraison.generatePDF');
             Route::post('/store', [PlancheBonLivraisonController::class, 'store'])->name('planche-bons-livraison.store');
-            Route::put('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'update'])->name('planche-bons-livraison.update');
-            Route::delete('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'destroy'])->name('planche-bons-livraison.destroy');
+            Route::middleware('role:admin')->group(function () {
+                Route::put('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'update'])->name('planche-bons-livraison.update');
+                Route::delete('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'destroy'])->name('planche-bons-livraison.destroy');
+            });
         });
 
         Route::middleware('role:admin')->group(function () {

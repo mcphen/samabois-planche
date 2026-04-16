@@ -27,6 +27,24 @@ class PlancheBonLivraisonLigne extends Model
         'prix_total' => 'decimal:2',
     ];
 
+    public function getBeneficeUnitaireAttribute(): ?float
+    {
+        $prixRevient = $this->plancheDetail?->prix_de_revient;
+        if ($prixRevient === null || $this->prix_unitaire === null) {
+            return null;
+        }
+        return (float) $this->prix_unitaire - (float) $prixRevient;
+    }
+
+    public function getBeneficeTotalAttribute(): ?float
+    {
+        $beneficeUnitaire = $this->benefice_unitaire;
+        if ($beneficeUnitaire === null) {
+            return null;
+        }
+        return $beneficeUnitaire * $this->quantite_livree;
+    }
+
     public function bonLivraison()
     {
         return $this->belongsTo(PlancheBonLivraison::class, 'planche_bon_livraison_id');

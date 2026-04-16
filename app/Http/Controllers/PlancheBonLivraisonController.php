@@ -7,6 +7,7 @@ use App\Http\Requests\UpdatePlancheBonLivraisonRequest;
 use App\Models\Client;
 use App\Models\Contrat;
 use App\Models\Epaisseur;
+use App\Models\PlancheBenefitHistory;
 use App\Models\PlancheBonLivraison;
 use App\Models\PlancheDetail;
 use App\Models\Supplier;
@@ -148,6 +149,22 @@ class PlancheBonLivraisonController extends Controller
                 'planche_bon_livraison_id' => $bonLivraison->id,
             ]);
 
+            $bonLivraison->load('lignes.plancheDetail:id,prix_de_revient');
+            PlancheBenefitHistory::create([
+                'user_id' => auth()->id(),
+                'planche_bon_livraison_id' => $bonLivraison->id,
+                'action' => 'bon_livraison_created',
+                'new_data' => [
+                    'montant' => $bonLivraison->montant,
+                    'lines' => $bonLivraison->lignes->map(fn ($ligne) => [
+                        'planche_detail_id'  => $ligne->planche_detail_id,
+                        'prix_unitaire'      => (float) $ligne->prix_unitaire,
+                        'prix_total'         => (float) $ligne->prix_total,
+                        'prix_de_revient'    => $ligne->plancheDetail?->prix_de_revient,
+                    ])->all(),
+                ],
+            ]);
+
             return $bonLivraison;
         });
 
@@ -163,6 +180,16 @@ class PlancheBonLivraisonController extends Controller
     public function update(UpdatePlancheBonLivraisonRequest $request, PlancheBonLivraison $plancheBonLivraison)
     {
         $plancheBonLivraison = DB::transaction(function () use ($request, $plancheBonLivraison) {
+            $plancheBonLivraison->load('lignes.plancheDetail:id,prix_de_revient');
+            $oldLines = $plancheBonLivraison->lignes->map(fn ($ligne) => [
+                'planche_bon_livraison_ligne_id' => $ligne->id,
+                'planche_detail_id'  => $ligne->planche_detail_id,
+                'prix_unitaire'      => (float) $ligne->prix_unitaire,
+                'prix_total'         => (float) $ligne->prix_total,
+                'prix_de_revient'    => $ligne->plancheDetail?->prix_de_revient,
+            ])->all();
+            $oldMontant = (float) $plancheBonLivraison->montant;
+
             $plancheBonLivraison->update([
                 'client_id' => $request->integer('client_id'),
                 'date_livraison' => $request->input('date_livraison'),
@@ -183,6 +210,30 @@ class PlancheBonLivraisonController extends Controller
             );
 
             $plancheBonLivraison->recalculerMontant();
+            $plancheBonLivraison->load('lignes.plancheDetail:id,prix_de_revient');
+            $newLines = $plancheBonLivraison->lignes->map(fn ($ligne) => [
+                'planche_bon_livraison_ligne_id' => $ligne->id,
+                'planche_detail_id'  => $ligne->planche_detail_id,
+                'prix_unitaire'      => (float) $ligne->prix_unitaire,
+                'prix_total'         => (float) $ligne->prix_total,
+                'prix_de_revient'    => $ligne->plancheDetail?->prix_de_revient,
+            ])->all();
+
+            if (json_encode($oldLines) !== json_encode($newLines) || $oldMontant !== (float) $plancheBonLivraison->montant) {
+                PlancheBenefitHistory::create([
+                    'user_id' => auth()->id(),
+                    'planche_bon_livraison_id' => $plancheBonLivraison->id,
+                    'action' => 'bon_livraison_updated',
+                    'old_data' => [
+                        'montant' => $oldMontant,
+                        'lines' => $oldLines,
+                    ],
+                    'new_data' => [
+                        'montant' => (float) $plancheBonLivraison->montant,
+                        'lines' => $newLines,
+                    ],
+                ]);
+            }
 
             // Mettre à jour la transaction liée
             $plancheBonLivraison->transactions()
@@ -227,7 +278,7 @@ class PlancheBonLivraisonController extends Controller
         return [
             'client:id,name',
             'lignes:id,planche_bon_livraison_id,planche_detail_id,quantite_livree,prix_unitaire,prix_total',
-            'lignes.plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
+            'lignes.plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue,prix_de_revient',
             'lignes.plancheDetail.couleur:id,code',
             'lignes.plancheDetail.planche:id,contrat_id',
             'lignes.plancheDetail.planche.contrat:id,supplier_id,numero',
@@ -317,18 +368,25 @@ class PlancheBonLivraisonController extends Controller
     private function decorateBonLivraison(PlancheBonLivraison $bonLivraison): array
     {
         $lignes = $bonLivraison->lignes->map(function ($ligne) {
+            $prixDeRevient    = $ligne->plancheDetail?->prix_de_revient !== null ? (float) $ligne->plancheDetail->prix_de_revient : null;
+            $beneficeUnitaire = ($prixDeRevient !== null) ? ((float) $ligne->prix_unitaire - $prixDeRevient) : null;
+            $beneficeTotal    = ($beneficeUnitaire !== null) ? $beneficeUnitaire * (int) $ligne->quantite_livree : null;
+
             return [
-                'id'              => $ligne->id,
-                'quantite_livree' => (int) $ligne->quantite_livree,
-                'prix_unitaire'   => (float) $ligne->prix_unitaire,
-                'prix_total'      => (float) $ligne->prix_total,
-                'detail_id'       => $ligne->plancheDetail?->id,
-                'supplier_name'   => $ligne->plancheDetail?->planche?->contrat?->supplier?->name,
-                'numero_contrat'  => $ligne->plancheDetail?->planche?->contrat?->numero,
-                'code_couleur'    => $ligne->plancheDetail?->couleur?->code,
-                'categorie'       => $ligne->plancheDetail?->categorie,
-                'epaisseur'       => $ligne->plancheDetail?->epaisseur,
-                'quantite_prevue' => (int) ($ligne->plancheDetail?->quantite_prevue ?? 0),
+                'id'                => $ligne->id,
+                'quantite_livree'   => (int) $ligne->quantite_livree,
+                'prix_unitaire'     => (float) $ligne->prix_unitaire,
+                'prix_total'        => (float) $ligne->prix_total,
+                'detail_id'         => $ligne->plancheDetail?->id,
+                'supplier_name'     => $ligne->plancheDetail?->planche?->contrat?->supplier?->name,
+                'numero_contrat'    => $ligne->plancheDetail?->planche?->contrat?->numero,
+                'code_couleur'      => $ligne->plancheDetail?->couleur?->code,
+                'categorie'         => $ligne->plancheDetail?->categorie,
+                'epaisseur'         => $ligne->plancheDetail?->epaisseur,
+                'quantite_prevue'   => (int) ($ligne->plancheDetail?->quantite_prevue ?? 0),
+                'prix_de_revient'   => $prixDeRevient,
+                'benefice_unitaire' => $beneficeUnitaire,
+                'benefice_total'    => $beneficeTotal,
             ];
         })->values();
 
@@ -346,6 +404,9 @@ class PlancheBonLivraisonController extends Controller
             'lignes_count'           => $lignes->count(),
             'quantite_totale_livree' => $lignes->sum('quantite_livree'),
             'montant_total'          => (float) $lignes->sum('prix_total'),
+            'benefice_total'         => $lignes->every(fn ($l) => $l['benefice_total'] === null)
+                                            ? null
+                                            : (float) $lignes->sum(fn ($l) => $l['benefice_total'] ?? 0),
             'contrats'               => $lignes->pluck('numero_contrat')->filter()->unique()->values(),
             'fournisseurs'           => $lignes->pluck('supplier_name')->filter()->unique()->values(),
             'lignes'                 => $lignes,

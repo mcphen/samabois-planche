@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Contrat;
 use App\Models\Epaisseur;
 use App\Models\Planche;
+use App\Models\PlancheBenefitHistory;
 use App\Models\PlancheDetail;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
@@ -38,6 +39,7 @@ class ContratController extends Controller
                 ->select('id', 'name')
                 ->orderBy('name')
                 ->get(),
+            'userRole' => auth()->user()->role,
         ]);
     }
 
@@ -118,6 +120,46 @@ class ContratController extends Controller
         return response()->json($contrats);
     }
 
+    public function getBenefitHistory(Contrat $contrat)
+    {
+        $history = PlancheBenefitHistory::query()
+            ->with([
+                'user:id,name',
+                'plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur',
+                'plancheDetail.couleur:id,code',
+                'plancheBonLivraison:id,numero_bl',
+            ])
+            ->where(function ($query) use ($contrat) {
+                $query->whereHas('plancheDetail.planche', fn ($query) => $query->where('contrat_id', $contrat->id))
+                    ->orWhereHas('plancheBonLivraison.lignes.plancheDetail.planche', fn ($query) => $query->where('contrat_id', $contrat->id));
+            })
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (PlancheBenefitHistory $entry) {
+                return [
+                    'id' => $entry->id,
+                    'action' => $entry->action,
+                    'user' => $entry->user?->name,
+                    'created_at' => optional($entry->created_at)->format('Y-m-d H:i'),
+                    'planche_detail' => $entry->plancheDetail ? [
+                        'id' => $entry->plancheDetail->id,
+                        'categorie' => $entry->plancheDetail->categorie,
+                        'epaisseur' => $entry->plancheDetail->epaisseur,
+                        'code_couleur' => $entry->plancheDetail->couleur?->code,
+                    ] : null,
+                    'bon_livraison' => $entry->plancheBonLivraison ? [
+                        'id' => $entry->plancheBonLivraison->id,
+                        'numero_bl' => $entry->plancheBonLivraison->numero_bl,
+                    ] : null,
+                    'old_data' => $entry->old_data,
+                    'new_data' => $entry->new_data,
+                    'notes' => $entry->notes,
+                ];
+            });
+
+        return response()->json($history);
+    }
+
     private function contratRelations(): array
     {
         return [
@@ -128,9 +170,10 @@ class ContratController extends Controller
                     ->with([
                         'details' => function ($detailQuery) {
                             $detailQuery
-                                ->select('id', 'planche_id', 'planche_couleur_id', 'categorie', 'epaisseur', 'quantite_prevue')
+                                ->select('id', 'planche_id', 'planche_couleur_id', 'categorie', 'epaisseur', 'quantite_prevue', 'prix_de_revient')
                                 ->with(['couleur:id,code,image_path'])
                                 ->withSum('bonLivraisonLignes as total_quantite_livree', 'quantite_livree')
+                                ->withSum('bonLivraisonLignes as total_prix_total', 'prix_total')
                                 ->orderBy('epaisseur');
                         },
                     ])
@@ -181,9 +224,13 @@ class ContratController extends Controller
     private function decorateDetail(PlancheDetail $detail): PlancheDetail
     {
         $quantiteLivree = (int) ($detail->total_quantite_livree ?? 0);
+        $totalPrixTotal = (float) ($detail->total_prix_total ?? 0);
 
         $detail->setAttribute('total_quantite_livree', $quantiteLivree);
         $detail->setAttribute('quantite_disponible', max((int) $detail->quantite_prevue - $quantiteLivree, 0));
+        $detail->setAttribute('total_prix_total', $totalPrixTotal);
+        $detail->setAttribute('cout_total', $detail->prix_de_revient !== null ? (float) $detail->prix_de_revient * $quantiteLivree : null);
+        $detail->setAttribute('profit_total', $detail->prix_de_revient !== null ? $totalPrixTotal - ((float) $detail->prix_de_revient * $quantiteLivree) : null);
 
         return $detail;
     }

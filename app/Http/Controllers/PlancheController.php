@@ -8,6 +8,7 @@ use App\Http\Requests\StorePlancheRequest;
 use App\Models\Contrat;
 use App\Models\Epaisseur;
 use App\Models\Planche;
+use App\Models\PlancheBenefitHistory;
 use App\Models\PlancheCouleur;
 use App\Models\PlancheDetail;
 use App\Models\Supplier;
@@ -233,6 +234,7 @@ class PlancheController extends Controller
                             'categorie'          => $cat,
                             'epaisseur'          => $ep['epaisseur'],
                             'quantite_prevue'    => $ep['quantite_prevue'],
+                            'prix_de_revient'    => isset($ep['prix_de_revient']) && $ep['prix_de_revient'] !== '' ? (float) $ep['prix_de_revient'] : null,
                         ])->values()->all()
                     );
 
@@ -314,12 +316,27 @@ class PlancheController extends Controller
                     ]);
                 }
 
+                $prixDeRevientRaw = $request->input('prix_de_revient');
+                $prixDeRevient    = ($prixDeRevientRaw !== null && $prixDeRevientRaw !== '') ? (float) $prixDeRevientRaw : null;
+
                 $detail = $targetPlanche->details()->create([
                     'planche_couleur_id' => $couleur->id,
                     'categorie'          => $categorie,
                     'epaisseur'          => $epaisseur,
                     'quantite_prevue'    => $quantitePrevue,
+                    'prix_de_revient'    => $prixDeRevient,
                 ]);
+
+                if ($prixDeRevient !== null) {
+                    PlancheBenefitHistory::create([
+                        'user_id' => auth()->id(),
+                        'planche_detail_id' => $detail->id,
+                        'action' => 'detail_prix_de_revient_set',
+                        'new_data' => [
+                            'prix_de_revient' => $prixDeRevient,
+                        ],
+                    ]);
+                }
 
                 return [
                     'detail_id'  => $detail->id,
@@ -385,12 +402,55 @@ class PlancheController extends Controller
                     ]);
                 }
 
+                $prixDeRevientRaw = $request->input('prix_de_revient');
+                $prixDeRevient    = ($prixDeRevientRaw !== null && $prixDeRevientRaw !== '') ? (float) $prixDeRevientRaw : null;
+                $oldPrixDeRevient = $detail->prix_de_revient;
+                $oldQuantitePrevue = $detail->quantite_prevue;
+
+                if ($oldPrixDeRevient !== $prixDeRevient) {
+                    $quantiteLivree = $detail->bonLivraisonLignes()->sum('quantite_livree');
+                    $totalPrixTotal = $detail->bonLivraisonLignes()->sum('prix_total');
+
+                    PlancheBenefitHistory::create([
+                        'user_id' => auth()->id(),
+                        'planche_detail_id' => $detail->id,
+                        'action' => 'detail_prix_de_revient_changed',
+                        'old_data' => [
+                            'prix_de_revient' => $oldPrixDeRevient,
+                            'quantite_livree' => $quantiteLivree,
+                            'total_prix_total' => $totalPrixTotal,
+                            'profit' => $oldPrixDeRevient !== null ? $totalPrixTotal - ($quantiteLivree * $oldPrixDeRevient) : null,
+                        ],
+                        'new_data' => [
+                            'prix_de_revient' => $prixDeRevient,
+                            'quantite_livree' => $quantiteLivree,
+                            'total_prix_total' => $totalPrixTotal,
+                            'profit' => $prixDeRevient !== null ? $totalPrixTotal - ($quantiteLivree * $prixDeRevient) : null,
+                        ],
+                    ]);
+                }
+
+                if ($oldQuantitePrevue !== $quantitePrevue) {
+                    PlancheBenefitHistory::create([
+                        'user_id' => auth()->id(),
+                        'planche_detail_id' => $detail->id,
+                        'action' => 'detail_quantite_prevue_changed',
+                        'old_data' => [
+                            'quantite_prevue' => $oldQuantitePrevue,
+                        ],
+                        'new_data' => [
+                            'quantite_prevue' => $quantitePrevue,
+                        ],
+                    ]);
+                }
+
                 $detail->update([
                     'planche_id'         => $targetPlanche->id,
                     'planche_couleur_id' => $couleur->id,
                     'categorie'          => $categorie,
                     'epaisseur'          => $epaisseur,
                     'quantite_prevue'    => $quantitePrevue,
+                    'prix_de_revient'    => $prixDeRevient,
                 ]);
 
                 $redirectTo = null;

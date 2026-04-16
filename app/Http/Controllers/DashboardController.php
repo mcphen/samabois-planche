@@ -70,17 +70,8 @@ class DashboardController extends Controller
     // ─────────────────────────────────────────────────────────────
     //  CA par mois — planches uniquement
     // ─────────────────────────────────────────────────────────────
-    public function getChiffreAffaireBeneficeParMois(Request $request)
+    protected function applyDashboardFilters($query, Request $request)
     {
-        $query = PlancheBonLivraison::where('statut', '!=', 'annule')
-            ->select(
-                DB::raw('YEAR(date_livraison) as year'),
-                DB::raw('MONTH(date_livraison) as month'),
-                DB::raw('SUM(montant) as total_revenue')
-            )
-            ->groupBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'))
-            ->orderBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'));
-
         if ($request->filled('client_id')) {
             $query->where('client_id', $request->client_id);
         }
@@ -99,49 +90,55 @@ class DashboardController extends Controller
             });
         }
 
-        $stats = $query->get()->map(function ($stat) {
-            $stat->cost_base = 0;
-            $stat->profit    = 0;
+        return $query;
+    }
+
+    protected function getChiffreAffaireBeneficeStats(Request $request)
+    {
+        $baseQuery = PlancheBonLivraison::where('statut', '!=', 'annule');
+
+        $revenueQuery = $this->applyDashboardFilters(clone $baseQuery, $request)
+            ->select(
+                DB::raw('YEAR(date_livraison) as year'),
+                DB::raw('MONTH(date_livraison) as month'),
+                DB::raw('SUM(montant) as total_revenue')
+            )
+            ->groupBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'))
+            ->orderBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'));
+
+        $costQuery = $this->applyDashboardFilters(clone $baseQuery, $request)
+            ->join('planche_bon_livraison_lignes as lignes', 'planche_bons_livraison.id', '=', 'lignes.planche_bon_livraison_id')
+            ->leftJoin('planche_details as details', 'lignes.planche_detail_id', '=', 'details.id')
+            ->select(
+                DB::raw('YEAR(planche_bons_livraison.date_livraison) as year'),
+                DB::raw('MONTH(planche_bons_livraison.date_livraison) as month'),
+                DB::raw('SUM(COALESCE(lignes.quantite_livree * details.prix_de_revient, 0)) as total_cost')
+            )
+            ->groupBy(DB::raw('YEAR(planche_bons_livraison.date_livraison), MONTH(planche_bons_livraison.date_livraison)'))
+            ->orderBy(DB::raw('YEAR(planche_bons_livraison.date_livraison), MONTH(planche_bons_livraison.date_livraison)'));
+
+        $costRows = $costQuery->get()->keyBy(fn ($row) => sprintf('%s-%s', $row->year, $row->month));
+
+        return $revenueQuery->get()->map(function ($stat) use ($costRows) {
+            $key = sprintf('%s-%s', $stat->year, $stat->month);
+            $cost = $costRows->get($key)->total_cost ?? 0;
+
+            $stat->cost_base = (float) $cost;
+            $stat->profit    = (float) ($stat->total_revenue - $cost);
+
             return $stat;
         });
+    }
 
+    public function getChiffreAffaireBeneficeParMois(Request $request)
+    {
+        $stats = $this->getChiffreAffaireBeneficeStats($request);
         return response()->json($stats);
     }
 
     public function exportChiffreAffaireBeneficePDF(Request $request)
     {
-        $query = PlancheBonLivraison::where('statut', '!=', 'annule')
-            ->select(
-                DB::raw('YEAR(date_livraison) as year'),
-                DB::raw('MONTH(date_livraison) as month'),
-                DB::raw('SUM(montant) as total_revenue')
-            )
-            ->groupBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'))
-            ->orderBy(DB::raw('YEAR(date_livraison), MONTH(date_livraison)'));
-
-        if ($request->filled('client_id')) {
-            $query->where('client_id', $request->client_id);
-        }
-
-        if ($request->filled('couleur_id') || $request->filled('epaisseur') || $request->filled('categorie')) {
-            $query->whereHas('lignes.plancheDetail', function ($q) use ($request) {
-                if ($request->filled('couleur_id')) {
-                    $q->where('planche_couleur_id', $request->couleur_id);
-                }
-                if ($request->filled('epaisseur')) {
-                    $q->where('epaisseur', $request->epaisseur);
-                }
-                if ($request->filled('categorie')) {
-                    $q->where('categorie', $request->categorie);
-                }
-            });
-        }
-
-        $stats = $query->get()->map(function ($stat) {
-            $stat->cost_base = 0;
-            $stat->profit    = 0;
-            return $stat;
-        });
+        $stats = $this->getChiffreAffaireBeneficeStats($request);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.stats_ca_benefice', compact('stats'));
         return $pdf->download('chiffre_affaire_planches.pdf');

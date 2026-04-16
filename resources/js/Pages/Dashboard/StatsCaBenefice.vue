@@ -1,7 +1,7 @@
 <template>
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
-            <h6 class="mb-0"><i class="fa fa-bar-chart mr-2 text-primary"></i>Chiffre d'Affaires par Mois — Planches</h6>
+            <h6 class="mb-0"><i class="fa fa-bar-chart mr-2 text-primary"></i>Chiffre d'Affaires et Bénéfices par Mois — Planches</h6>
             <div class="d-flex align-items-center mt-1 mt-sm-0">
                 <button @click="fetchStats" class="btn btn-primary btn-sm mr-1" :disabled="loading">
                     <i class="fa fa-filter mr-1"></i>Appliquer
@@ -100,18 +100,26 @@
                             <tr>
                                 <th>Période</th>
                                 <th class="text-right">Chiffre d'Affaires</th>
+                                <th class="text-right">Coût de revient</th>
+                                <th class="text-right">Bénéfice</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="row in stats" :key="`${row.year}-${row.month}`">
                                 <td class="font-weight-bold">{{ monthName(row.month) }} {{ row.year }}</td>
                                 <td class="text-right text-primary font-weight-bold">{{ formatPrice(row.total_revenue) }}</td>
+                                <td class="text-right text-secondary">{{ formatPrice(row.cost_base) }}</td>
+                                <td :class="row.profit >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold'">
+                                    {{ formatPrice(row.profit) }}
+                                </td>
                             </tr>
                         </tbody>
                         <tfoot class="font-weight-bold bg-light">
                             <tr>
                                 <td>Total</td>
                                 <td class="text-right text-primary">{{ formatPrice(totalRevenue) }}</td>
+                                <td class="text-right text-secondary">{{ formatPrice(totalCost) }}</td>
+                                <td :class="totalProfit >= 0 ? 'text-success' : 'text-danger'">{{ formatPrice(totalProfit) }}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -172,6 +180,14 @@ const totalRevenue = computed(() =>
     stats.value.reduce((s, r) => s + Number(r.total_revenue), 0)
 );
 
+const totalCost = computed(() =>
+    stats.value.reduce((s, r) => s + Number(r.cost_base), 0)
+);
+
+const totalProfit = computed(() =>
+    stats.value.reduce((s, r) => s + Number(r.profit), 0)
+);
+
 const chartData = computed(() => {
     if (!stats.value.length) return null;
     return {
@@ -181,6 +197,11 @@ const chartData = computed(() => {
                 label: "Chiffre d'Affaires",
                 data: stats.value.map((s) => s.total_revenue),
                 backgroundColor: "#007bff",
+            },
+            {
+                label: "Bénéfice",
+                data: stats.value.map((s) => s.profit),
+                backgroundColor: "#28a745",
             },
         ],
     };

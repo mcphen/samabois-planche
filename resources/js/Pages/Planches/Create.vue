@@ -70,10 +70,11 @@
                     <table class="table table-sm table-bordered table-hover mb-0" style="background:#fff;">
                         <thead style="background:#f0f4ff;">
                             <tr>
-                                <th style="width:36%;">Code couleur</th>
-                                <th style="width:18%;">Categorie</th>
-                                <th style="width:16%;">Epaisseur</th>
-                                <th style="width:16%;">Quantite prevue</th>
+                                <th style="width:30%;">Code couleur</th>
+                                <th style="width:15%;">Categorie</th>
+                                <th style="width:13%;">Epaisseur</th>
+                                <th style="width:13%;">Quantite prevue</th>
+                                <th style="width:15%;">Prix de revient</th>
                                 <th class="text-center" style="width:14%;">Actions</th>
                             </tr>
                         </thead>
@@ -142,6 +143,19 @@
                                     />
                                     <small v-if="errors[`rows.${index}.quantite_prevue`]" class="text-danger d-block mt-1">
                                         {{ errors[`rows.${index}.quantite_prevue`][0] }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <input
+                                        v-model="row.prix_de_revient"
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        class="form-control form-control-sm"
+                                        placeholder="Optionnel"
+                                    />
+                                    <small v-if="errors[`rows.${index}.prix_de_revient`]" class="text-danger d-block mt-1">
+                                        {{ errors[`rows.${index}.prix_de_revient`][0] }}
                                     </small>
                                 </td>
                                 <td class="text-center align-middle">
@@ -309,6 +323,7 @@ function createRow(defaults = {}) {
         categorie: defaults.categorie || '',
         epaisseur: defaults.epaisseur || '',
         quantite_prevue: defaults.quantite_prevue || '',
+        prix_de_revient: defaults.prix_de_revient || '',
     };
 }
 
@@ -328,6 +343,7 @@ function addRow(index) {
         categorie: source?.categorie || '',
         epaisseur: source?.epaisseur || '',
         quantite_prevue: source?.quantite_prevue || '',
+        prix_de_revient: source?.prix_de_revient || '',
     }));
 }
 
@@ -394,6 +410,7 @@ function buildPayload() {
         groupes[groupIndex].epaisseurs.push({
             epaisseur: row.epaisseur,
             quantite_prevue: row.quantite_prevue,
+            prix_de_revient: row.prix_de_revient !== '' ? row.prix_de_revient : null,
         });
 
         rowMap.push({ groupIndex, epaisseurIndex });

@@ -5,13 +5,13 @@
         <BreadcrumbsAndActions :title="`Contrat ${contrat.numero}`" :breadcrumbs="breadcrumbs">
             <template #action>
                 <div class="d-flex flex-wrap" style="gap: 8px;">
-                    <button type="button" class="btn btn-outline-secondary" @click="openEditModal">
+                    <button v-if="isAdmin" type="button" class="btn btn-outline-secondary" @click="openEditModal">
                         <i class="fa fa-pencil"></i> Modifier
                     </button>
                     <Link class="btn btn-outline-info" href="/admin/planche-bons-livraison/create">
                         <i class="fa fa-truck"></i> Nouvelle facture
                     </Link>
-                    <button type="button" class="btn btn-primary" @click="openCreateModal">
+                    <button v-if="isAdmin" type="button" class="btn btn-primary" @click="openCreateModal">
                         <i class="fa fa-plus"></i> Ajouter des planches
                     </button>
                 </div>
@@ -55,11 +55,11 @@
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Code couleur</th><th>Categorie</th><th>Epaisseur</th><th>Prevues</th><th>Livrees</th><th>Disponibles</th><th>Actions</th>
+                            <th>Code couleur</th><th>Categorie</th><th>Epaisseur</th><th>Prevues</th><th>Livrees</th><th>Disponibles</th><th>Prix de revient</th><th>Total vendu</th><th>Bénéfice total</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="!contractDetails.length"><td colspan="8" class="text-center py-4">Aucun detail pour ce contrat.</td></tr>
+                        <tr v-if="!contractDetails.length"><td colspan="10" class="text-center py-4">Aucun detail pour ce contrat.</td></tr>
                         <tr v-for="detail in contractDetails" :key="detail.id">
                             
                             <td>
@@ -76,21 +76,33 @@
                             <td>{{ detail.quantite_prevue || 0 }}</td>
                             <td>{{ detail.total_quantite_livree || 0 }}</td>
                             <td class="font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
+                            <td>{{ detail.prix_de_revient !== null && detail.prix_de_revient !== undefined ? formatCurrency(detail.prix_de_revient) : '-' }}</td>
+                            <td>{{ detail.total_prix_total ? formatCurrency(detail.total_prix_total) : '-' }}</td>
+                            <td :class="detail.profit_total !== null ? (detail.profit_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
+                                {{ detail.profit_total !== null ? formatCurrency(detail.profit_total) : '-' }}
+                            </td>
                             <td>
-                                <div class="d-flex flex-wrap" style="gap:6px;">
+                                <div v-if="isAdmin" class="d-flex flex-wrap" style="gap:6px;">
                                     <button type="button" class="btn btn-warning btn-sm" @click="openDetailEditModal(detail)">Modifier</button>
                                     <button type="button" class="btn btn-danger btn-sm" @click="deleteDetail(detail)">Supprimer</button>
                                 </div>
+                                <span v-else class="text-muted">-</span>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <div class="row clearfix mt-4">
+            <div class="col-12">
+                <BenefitHistory :contrat-id="contrat.id" />
+            </div>
+        </div>
     </AuthenticatedLayout>
 
     <div v-if="showCreateModal" class="modal d-block" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-dialog modal-xl" role="document" style="max-width:95vw;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Ajouter des planches au contrat {{ contrat.numero }}</h5>
@@ -120,7 +132,7 @@
                                 <table class="table table-sm table-bordered table-hover mb-0" style="background:#fff;">
                                     <thead style="background:#f0f4ff;">
                                         <tr>
-                                            <th style="width:36%;">Code couleur</th><th style="width:18%;">Categorie</th><th style="width:16%;">Epaisseur</th><th style="width:16%;">Quantite prevue</th><th class="text-center" style="width:14%;">Actions</th>
+                                            <th style="width:28%;">Code couleur</th><th style="width:15%;">Categorie</th><th style="width:13%;">Epaisseur</th><th style="width:13%;">Quantite prevue</th><th style="width:17%;">Prix de revient</th><th class="text-center" style="width:14%;">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -160,6 +172,10 @@
                                             <td>
                                                 <input v-model="row.quantite_prevue" type="number" min="1" step="1" class="form-control form-control-sm" placeholder="ex: 100" />
                                                 <small v-if="createErrors[`rows.${index}.quantite_prevue`]" class="text-danger d-block mt-1">{{ createErrors[`rows.${index}.quantite_prevue`][0] }}</small>
+                                            </td>
+                                            <td>
+                                                <input v-model="row.prix_de_revient" type="number" min="0" step="1" class="form-control form-control-sm" placeholder="Optionnel" />
+                                                <small v-if="createErrors[`rows.${index}.prix_de_revient`]" class="text-danger d-block mt-1">{{ createErrors[`rows.${index}.prix_de_revient`][0] }}</small>
                                             </td>
                                             <td class="text-center align-middle">
                                                 <div class="d-flex justify-content-center" style="gap:6px;">
@@ -265,10 +281,15 @@
                         </select>
                         <small v-if="detailEditErrors.epaisseur" class="text-danger d-block mt-1">{{ detailEditErrors.epaisseur[0] }}</small>
                     </div>
-                    <div class="form-group mb-0">
+                    <div class="form-group">
                         <label>Quantite prevue *</label>
                         <input v-model="detailEditForm.quantite_prevue" type="number" min="1" step="1" class="form-control" />
                         <small v-if="detailEditErrors.quantite_prevue" class="text-danger d-block mt-1">{{ detailEditErrors.quantite_prevue[0] }}</small>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label>Prix de revient <small class="text-muted">(optionnel)</small></label>
+                        <input v-model="detailEditForm.prix_de_revient" type="number" min="0" step="1" class="form-control" placeholder="Ex: 5000" />
+                        <small v-if="detailEditErrors.prix_de_revient" class="text-danger d-block mt-1">{{ detailEditErrors.prix_de_revient[0] }}</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -291,12 +312,16 @@ import { Inertia } from '@inertiajs/inertia';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
 import PlancheColorInput from '@/Components/PlancheColorInput.vue';
+import BenefitHistory from '@/Pages/Contrats/BenefitHistory.vue';
 
 const props = defineProps({
     contrat: { type: Object, required: true },
     epaisseurs: { type: Array, default: () => [] },
     suppliers: { type: Array, default: () => [] },
+    userRole: { type: String, default: 'user' },
 });
+
+const isAdmin = computed(() => props.userRole === 'admin');
 
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
@@ -338,6 +363,10 @@ const contractDetails = computed(() => (props.contrat.planches || [])
         quantite_prevue: detail.quantite_prevue,
         total_quantite_livree: detail.total_quantite_livree || 0,
         quantite_disponible: detail.quantite_disponible || 0,
+        prix_de_revient: detail.prix_de_revient ?? null,
+        total_prix_total: detail.total_prix_total ?? 0,
+        cout_total: detail.cout_total ?? null,
+        profit_total: detail.profit_total ?? null,
     })))
     .sort((a, b) => {
         const keyA = `${a.code_couleur || ''}|${a.categorie || ''}`;
@@ -369,6 +398,7 @@ function buildInitialDetailEditForm() {
         categorie: '',
         epaisseur: '',
         quantite_prevue: '',
+        prix_de_revient: '',
     };
 }
 
@@ -381,6 +411,7 @@ function createRow(defaults = {}) {
         categorie: defaults.categorie || '',
         epaisseur: normalizeEpaisseurValue(defaults.epaisseur),
         quantite_prevue: defaults.quantite_prevue || '',
+        prix_de_revient: defaults.prix_de_revient || '',
     };
 }
 
@@ -454,7 +485,7 @@ function buildPayload() {
             groupes.push({ code_couleur: row.code_couleur, categorie: row.categorie, epaisseurs: [] });
         }
         const epaisseurIndex = groupes[groupIndex].epaisseurs.length;
-        groupes[groupIndex].epaisseurs.push({ epaisseur: row.epaisseur, quantite_prevue: row.quantite_prevue });
+        groupes[groupIndex].epaisseurs.push({ epaisseur: row.epaisseur, quantite_prevue: row.quantite_prevue, prix_de_revient: row.prix_de_revient !== '' ? row.prix_de_revient : null });
         rowMap.push({ groupIndex, epaisseurIndex });
     });
     return { payload: { supplier_id: createForm.value.supplier_id, numero_contrat: createForm.value.numero_contrat, groupes }, rowMap };
@@ -544,6 +575,7 @@ function openDetailEditModal(detail) {
         categorie: detail.categorie || '',
         epaisseur: normalizeEpaisseurValue(detail.epaisseur),
         quantite_prevue: detail.quantite_prevue || '',
+        prix_de_revient: detail.prix_de_revient !== null && detail.prix_de_revient !== undefined ? detail.prix_de_revient : '',
     };
     showDetailEditModal.value = true;
 }
@@ -565,6 +597,7 @@ function submitDetailEditForm() {
         categorie: detailEditForm.value.categorie,
         epaisseur: detailEditForm.value.epaisseur,
         quantite_prevue: detailEditForm.value.quantite_prevue,
+        prix_de_revient: detailEditForm.value.prix_de_revient !== '' ? detailEditForm.value.prix_de_revient : null,
     })
         .then(() => {
             closeDetailEditModal();
@@ -608,4 +641,5 @@ function deleteDetail(detail) {
 function categorieLabel(cat) { return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-'; }
 function categorieBadgeClass(cat) { return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light'; }
 function formatDecimal(value) { return value === null || value === undefined || value === '' ? '-' : Number(value).toFixed(2); }
+function formatCurrency(value) { const num = Math.round(Number(value || 0)); return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' CFA'; }
 </script>

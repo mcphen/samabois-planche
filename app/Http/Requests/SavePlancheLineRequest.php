@@ -18,6 +18,7 @@ class SavePlancheLineRequest extends FormRequest
             'categorie'       => ['required', 'in:mate,semi_brillant,brillant'],
             'epaisseur'       => ['required', 'numeric', 'min:0.01'],
             'quantite_prevue' => ['required', 'integer', 'min:1'],
+            'prix_de_revient' => ['nullable', 'numeric', 'min:0'],
         ];
     }
 }
