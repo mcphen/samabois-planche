@@ -61,15 +61,22 @@ class PlancheTarifController extends Controller
     public function update(Request $request, PlancheTarif $plancheTarif): JsonResponse
     {
         $validated = $request->validate([
-            'categorie'  => ['required', 'in:mate,semi_brillant,brillant'],
-            'epaisseur'  => ['required', 'numeric', 'min:0.01'],
-            'prix'       => ['required', 'numeric', 'min:0'],
+            'categorie'    => ['required', 'in:mate,semi_brillant,brillant'],
+            'epaisseur'    => ['required', 'numeric', 'min:0.01'],
+            'prix'         => ['required', 'numeric', 'min:0'],
+            'update_lignes' => ['boolean'],
         ]);
+
+        $updateLignes = (bool) ($validated['update_lignes'] ?? false);
+        unset($validated['update_lignes']);
 
         try {
             $plancheTarif->update($validated);
             PlancheTarif::clearCache();
-            $this->backfillLignes($plancheTarif);
+
+            if ($updateLignes) {
+                $this->overwriteAllLignes($plancheTarif);
+            }
         } catch (QueryException $e) {
             if ($e->getCode() === '23000') {
                 return response()->json([
@@ -94,6 +101,20 @@ class PlancheTarifController extends Controller
     {
         PlancheBonLivraisonLigne::query()
             ->whereNull('prix_de_revient')
+            ->whereHas('plancheDetail', function ($q) use ($tarif) {
+                $q->where('categorie', $tarif->categorie)
+                  ->where('epaisseur', $tarif->epaisseur);
+            })
+            ->update(['prix_de_revient' => $tarif->prix]);
+    }
+
+    /**
+     * Écrase le prix_de_revient sur TOUTES les lignes BL correspondant à ce tarif,
+     * qu'elles aient déjà un prix ou non.
+     */
+    private function overwriteAllLignes(PlancheTarif $tarif): void
+    {
+        PlancheBonLivraisonLigne::query()
             ->whereHas('plancheDetail', function ($q) use ($tarif) {
                 $q->where('categorie', $tarif->categorie)
                   ->where('epaisseur', $tarif->epaisseur);

@@ -8,57 +8,19 @@
         />
 
         <div class="row clearfix">
-            <!-- Formulaire d'ajout -->
-            <div class="col-md-4 mb-4">
-                <div class="card">
-                    <div class="header">
-                        <h2>{{ editingTarif ? 'Modifier le tarif' : 'Ajouter un tarif' }}</h2>
-                    </div>
-                    <div class="body">
-                        <div v-if="formError" class="alert alert-danger mb-3">
-                            <i class="fa fa-exclamation-circle mr-2"></i>{{ formError }}
-                        </div>
-                        <div class="form-group">
-                            <label>Catégorie *</label>
-                            <select v-model="form.categorie" class="form-control">
-                                <option value="">Sélectionner...</option>
-                                <option value="mate">Mate</option>
-                                <option value="semi_brillant">Semi-brillant</option>
-                                <option value="brillant">Brillant</option>
-                            </select>
-                            <small v-if="formErrors.categorie" class="text-danger d-block mt-1">{{ formErrors.categorie[0] }}</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Épaisseur *</label>
-                            <select v-model="form.epaisseur" class="form-control">
-                                <option value="">Sélectionner...</option>
-                                <option v-for="ep in epaisseurOptions" :key="ep.id" :value="ep.value">{{ ep.label }}</option>
-                            </select>
-                            <small v-if="formErrors.epaisseur" class="text-danger d-block mt-1">{{ formErrors.epaisseur[0] }}</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Prix (CFA) *</label>
-                            <input v-model="form.prix" type="number" min="0" step="1" class="form-control" placeholder="Ex: 5000" />
-                            <small v-if="formErrors.prix" class="text-danger d-block mt-1">{{ formErrors.prix[0] }}</small>
-                        </div>
-                        <div class="d-flex" style="gap:8px;">
-                            <button type="button" class="btn btn-success btn-sm" :disabled="submitting" @click="submitForm">
-                                {{ submitting ? 'Enregistrement...' : (editingTarif ? 'Mettre à jour' : 'Ajouter') }}
-                            </button>
-                            <button v-if="editingTarif" type="button" class="btn btn-secondary btn-sm" @click="cancelEdit">Annuler</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Liste des tarifs -->
-            <div class="col-md-8 mb-4">
+            <div class="col-md-12 mb-4">
                 <div class="card">
-                    <div class="header">
-                        <h2>Grille tarifaire <span class="badge badge-secondary ml-2">{{ tarifs.length }}</span></h2>
-                        <p class="text-muted mb-0" style="font-size:0.85rem;">
-                            Le prix de revient est déterminé automatiquement selon la catégorie et l'épaisseur de chaque planche.
-                        </p>
+                    <div class="header d-flex align-items-center justify-content-between flex-wrap" style="gap:8px;">
+                        <div>
+                            <h2>Grille tarifaire <span class="badge badge-secondary ml-2">{{ tarifs.length }}</span></h2>
+                            <p class="text-muted mb-0" style="font-size:0.85rem;">
+                                Le prix de revient est déterminé automatiquement selon la catégorie et l'épaisseur de chaque planche.
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm" @click="openAddModal">
+                            <i class="fa fa-plus mr-1"></i> Ajouter un tarif
+                        </button>
                     </div>
                     <div class="body">
                         <div v-if="tarifs.length === 0" class="text-muted text-center py-3">
@@ -105,6 +67,66 @@
             </div>
         </div>
     </AuthenticatedLayout>
+
+    <!-- Modale ajout / modification -->
+    <div v-if="showFormModal" class="modal d-block" tabindex="-1" role="dialog" style="background:rgba(0,0,0,0.5);">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fa mr-2" :class="editingTarif ? 'fa-pencil' : 'fa-plus'"></i>
+                        {{ editingTarif ? 'Modifier le tarif' : 'Ajouter un tarif' }}
+                    </h5>
+                    <button type="button" class="close" @click="cancelEdit">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="formError" class="alert alert-danger mb-3">
+                        <i class="fa fa-exclamation-circle mr-2"></i>{{ formError }}
+                    </div>
+                    <div class="form-group">
+                        <label>Catégorie *</label>
+                        <select v-model="form.categorie" class="form-control">
+                            <option value="">Sélectionner...</option>
+                            <option value="mate">Mate</option>
+                            <option value="semi_brillant">Semi-brillant</option>
+                            <option value="brillant">Brillant</option>
+                        </select>
+                        <small v-if="formErrors.categorie" class="text-danger d-block mt-1">{{ formErrors.categorie[0] }}</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Épaisseur *</label>
+                        <select v-model="form.epaisseur" class="form-control">
+                            <option value="">Sélectionner...</option>
+                            <option v-for="ep in epaisseurOptions" :key="ep.id" :value="ep.value">{{ ep.label }}</option>
+                        </select>
+                        <small v-if="formErrors.epaisseur" class="text-danger d-block mt-1">{{ formErrors.epaisseur[0] }}</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Prix (CFA) *</label>
+                        <input v-model="form.prix" type="number" min="0" step="1" class="form-control" placeholder="Ex: 5000" />
+                        <small v-if="formErrors.prix" class="text-danger d-block mt-1">{{ formErrors.prix[0] }}</small>
+                    </div>
+                    <div v-if="editingTarif" class="form-group mb-0">
+                        <div class="alert alert-warning py-2 px-3 mb-0" style="font-size:0.88rem;">
+                            <label class="d-flex align-items-start mb-0" style="cursor:pointer;gap:8px;">
+                                <input type="checkbox" v-model="form.update_lignes" style="margin-top:3px;flex-shrink:0;" />
+                                <span>
+                                    <strong>Mettre à jour les prix de revient existants</strong><br>
+                                    <span class="text-muted">Si coché, le nouveau prix remplacera le prix de revient de <strong>toutes</strong> les livraisons déjà enregistrées pour ce tarif. Sinon, seules les lignes sans prix de revient seront ignorées.</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" @click="cancelEdit">Annuler</button>
+                    <button type="button" class="btn btn-success btn-sm" :disabled="submitting" @click="submitForm">
+                        {{ submitting ? 'Enregistrement...' : (editingTarif ? 'Mettre à jour' : 'Ajouter') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modale bénéfices -->
     <div v-if="showBeneficesModal" class="modal d-block" tabindex="-1" role="dialog" style="background:rgba(0,0,0,0.5);">
@@ -227,6 +249,7 @@ const editingTarif = ref(null);
 const submitting = ref(false);
 const formError = ref('');
 const formErrors = ref({});
+const showFormModal = ref(false);
 
 const showBeneficesModal = ref(false);
 const beneficesLoading = ref(false);
@@ -245,7 +268,7 @@ function openBenefices(tarif) {
 const form = ref(buildEmptyForm());
 
 function buildEmptyForm() {
-    return { categorie: '', epaisseur: '', prix: '' };
+    return { categorie: '', epaisseur: '', prix: '', update_lignes: false };
 }
 
 const epaisseurOptions = computed(() =>
@@ -266,11 +289,20 @@ const sortedTarifs = computed(() =>
     })
 );
 
+function openAddModal() {
+    editingTarif.value = null;
+    form.value = buildEmptyForm();
+    formError.value = '';
+    formErrors.value = {};
+    showFormModal.value = true;
+}
+
 function startEdit(tarif) {
     editingTarif.value = tarif;
     form.value = { categorie: tarif.categorie, epaisseur: String(Number(tarif.epaisseur)), prix: tarif.prix };
     formError.value = '';
     formErrors.value = {};
+    showFormModal.value = true;
 }
 
 function cancelEdit() {
@@ -278,6 +310,7 @@ function cancelEdit() {
     form.value = buildEmptyForm();
     formError.value = '';
     formErrors.value = {};
+    showFormModal.value = false;
 }
 
 function submitForm() {
@@ -285,7 +318,12 @@ function submitForm() {
     formError.value = '';
     formErrors.value = {};
 
-    const payload = { categorie: form.value.categorie, epaisseur: form.value.epaisseur, prix: form.value.prix };
+    const payload = {
+        categorie: form.value.categorie,
+        epaisseur: form.value.epaisseur,
+        prix: form.value.prix,
+        ...(editingTarif.value ? { update_lignes: form.value.update_lignes } : {}),
+    };
 
     const request = editingTarif.value
         ? axios.put(`/admin/configuration/planche-tarifs/${editingTarif.value.id}`, payload)
