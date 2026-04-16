@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Contrat;
 use App\Models\Epaisseur;
 use App\Models\PlancheBonLivraisonLigne;
 use App\Models\PlancheTarif;
@@ -16,6 +17,7 @@ class PlancheTarifController extends Controller
     public function index(): \Inertia\Response
     {
         $tarifs = PlancheTarif::query()
+            ->with('contrat:id,numero')
             ->orderBy('categorie')
             ->orderBy('epaisseur')
             ->get();
@@ -24,9 +26,14 @@ class PlancheTarifController extends Controller
             ->orderBy('intitule')
             ->get(['id', 'intitule', 'slug']);
 
+        $contrats = Contrat::query()
+            ->orderBy('numero')
+            ->get(['id', 'numero']);
+
         return Inertia::render('Configuration/PlancheTarifs', [
             'tarifs'    => $tarifs,
             'epaisseurs' => $epaisseurs,
+            'contrats'  => $contrats,
         ]);
     }
 
@@ -36,6 +43,7 @@ class PlancheTarifController extends Controller
             'categorie'  => ['required', 'in:mate,semi_brillant,brillant'],
             'epaisseur'  => ['required', 'numeric', 'min:0.01'],
             'prix'       => ['required', 'numeric', 'min:0'],
+            'contrat_id' => ['nullable', 'integer', 'exists:contrats,id'],
         ]);
 
         try {
@@ -45,8 +53,8 @@ class PlancheTarifController extends Controller
         } catch (QueryException $e) {
             if ($e->getCode() === '23000') {
                 return response()->json([
-                    'message' => 'Un tarif existe déjà pour cette combinaison catégorie/épaisseur.',
-                    'errors' => ['epaisseur' => ['Ce tarif existe déjà.']],
+                    'message' => 'Un tarif existe déjà pour cette combinaison catégorie/épaisseur/contrat.',
+                    'errors' => ['epaisseur' => ['Ce tarif existe déjà pour cette combinaison.']],
                 ], 422);
             }
             throw $e;
@@ -54,7 +62,7 @@ class PlancheTarifController extends Controller
 
         return response()->json([
             'message' => 'Tarif créé avec succès.',
-            'data'    => $tarif,
+            'data'    => $tarif->load('contrat:id,numero'),
         ], 201);
     }
 
@@ -64,6 +72,7 @@ class PlancheTarifController extends Controller
             'categorie'    => ['required', 'in:mate,semi_brillant,brillant'],
             'epaisseur'    => ['required', 'numeric', 'min:0.01'],
             'prix'         => ['required', 'numeric', 'min:0'],
+            'contrat_id'   => ['nullable', 'integer', 'exists:contrats,id'],
             'update_lignes' => ['boolean'],
         ]);
 
@@ -80,8 +89,8 @@ class PlancheTarifController extends Controller
         } catch (QueryException $e) {
             if ($e->getCode() === '23000') {
                 return response()->json([
-                    'message' => 'Un tarif existe déjà pour cette combinaison catégorie/épaisseur.',
-                    'errors' => ['epaisseur' => ['Ce tarif existe déjà.']],
+                    'message' => 'Un tarif existe déjà pour cette combinaison catégorie/épaisseur/contrat.',
+                    'errors' => ['epaisseur' => ['Ce tarif existe déjà pour cette combinaison.']],
                 ], 422);
             }
             throw $e;
@@ -89,7 +98,7 @@ class PlancheTarifController extends Controller
 
         return response()->json([
             'message' => 'Tarif mis à jour avec succès.',
-            'data'    => $plancheTarif->fresh(),
+            'data'    => $plancheTarif->fresh(['contrat']),
         ]);
     }
 
@@ -99,13 +108,18 @@ class PlancheTarifController extends Controller
      */
     private function backfillLignes(PlancheTarif $tarif): void
     {
-        PlancheBonLivraisonLigne::query()
+        $query = PlancheBonLivraisonLigne::query()
             ->whereNull('prix_de_revient')
             ->whereHas('plancheDetail', function ($q) use ($tarif) {
                 $q->where('categorie', $tarif->categorie)
                   ->where('epaisseur', $tarif->epaisseur);
-            })
-            ->update(['prix_de_revient' => $tarif->prix]);
+            });
+
+        if ($tarif->contrat_id) {
+            $query->where('contrat_id', $tarif->contrat_id);
+        }
+
+        $query->update(['prix_de_revient' => $tarif->prix]);
     }
 
     /**
@@ -114,12 +128,17 @@ class PlancheTarifController extends Controller
      */
     private function overwriteAllLignes(PlancheTarif $tarif): void
     {
-        PlancheBonLivraisonLigne::query()
+        $query = PlancheBonLivraisonLigne::query()
             ->whereHas('plancheDetail', function ($q) use ($tarif) {
                 $q->where('categorie', $tarif->categorie)
                   ->where('epaisseur', $tarif->epaisseur);
-            })
-            ->update(['prix_de_revient' => $tarif->prix]);
+            });
+
+        if ($tarif->contrat_id) {
+            $query->where('contrat_id', $tarif->contrat_id);
+        }
+
+        $query->update(['prix_de_revient' => $tarif->prix]);
     }
 
     public function destroy(PlancheTarif $plancheTarif): JsonResponse
@@ -134,11 +153,17 @@ class PlancheTarifController extends Controller
 
     public function benefices(PlancheTarif $plancheTarif): JsonResponse
     {
-        $lignes = PlancheBonLivraisonLigne::query()
+        $lignesQuery = PlancheBonLivraisonLigne::query()
             ->whereHas('plancheDetail', function ($q) use ($plancheTarif) {
                 $q->where('categorie', $plancheTarif->categorie)
                   ->where('epaisseur', $plancheTarif->epaisseur);
-            })
+            });
+
+        if ($plancheTarif->contrat_id) {
+            $lignesQuery->where('contrat_id', $plancheTarif->contrat_id);
+        }
+
+        $lignes = $lignesQuery
             ->with([
                 'bonLivraison:id,numero_bl,date_livraison,client_id',
                 'bonLivraison.client:id,name',

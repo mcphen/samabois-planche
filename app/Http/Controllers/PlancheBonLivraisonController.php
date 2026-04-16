@@ -452,7 +452,8 @@ class PlancheBonLivraisonController extends Controller
         if ($detailInfos) {
             $detail = $detailInfos->get($ligne['planche_detail_id']);
             if ($detail) {
-                $prixDeRevient = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur);
+                $contratId     = $contratMap->get($ligne['contrat'] ?? '');
+                $prixDeRevient = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur, is_int($contratId) ? $contratId : null);
             }
         }
 

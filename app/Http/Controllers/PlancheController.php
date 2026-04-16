@@ -418,7 +418,7 @@ class PlancheController extends Controller
                     $redirectTo = $this->deletePlancheIfEmpty($anciennePlanche, $planche->id, $planche->contrat_id);
                 }
 
-                $prixRevient       = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur);
+                $prixRevient       = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur, $planche->contrat_id);
                 $quantiteLivree    = $detail->bonLivraisonLignes()->sum('quantite_livree');
                 $totalPrixTotal    = $detail->bonLivraisonLignes()->sum('prix_total');
 

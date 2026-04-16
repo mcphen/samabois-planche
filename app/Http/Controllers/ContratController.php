@@ -203,7 +203,7 @@ class ContratController extends Controller
     private function decoratePlanche(Planche $planche): Planche
     {
         $details = $planche->details
-            ->map(fn (PlancheDetail $detail) => $this->decorateDetail($detail))
+            ->map(fn (PlancheDetail $detail) => $this->decorateDetail($detail, $planche->contrat_id))
             ->sortBy(fn (PlancheDetail $detail) => (float) ($detail->epaisseur ?? 0))
             ->values();
 
@@ -222,11 +222,11 @@ class ContratController extends Controller
         return $planche;
     }
 
-    private function decorateDetail(PlancheDetail $detail): PlancheDetail
+    private function decorateDetail(PlancheDetail $detail, ?int $contratId = null): PlancheDetail
     {
         $quantiteLivree = (int) ($detail->total_quantite_livree ?? 0);
         $totalPrixTotal = (float) ($detail->total_prix_total ?? 0);
-        $prixRevient    = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur);
+        $prixRevient    = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur, $contratId);
 
         $detail->setAttribute('total_quantite_livree', $quantiteLivree);
         $detail->setAttribute('quantite_disponible', max((int) $detail->quantite_prevue - $quantiteLivree, 0));

@@ -32,6 +32,7 @@
                                     <tr>
                                         <th>Catégorie</th>
                                         <th class="text-center">Épaisseur</th>
+                                        <th>Contrat</th>
                                         <th class="text-right">Prix de revient</th>
                                         <th class="text-center">Actions</th>
                                     </tr>
@@ -44,6 +45,10 @@
                                             </span>
                                         </td>
                                         <td class="text-center">{{ formatDecimal(tarif.epaisseur) }}</td>
+                                        <td>
+                                            <span v-if="tarif.contrat" class="badge badge-info">{{ tarif.contrat.numero }}</span>
+                                            <span v-else class="text-muted" style="font-size:0.82rem;">Tous</span>
+                                        </td>
                                         <td class="text-right font-weight-bold">{{ formatCurrency(tarif.prix) }}</td>
                                         <td class="text-center">
                                             <div class="d-flex justify-content-center" style="gap:6px;">
@@ -105,6 +110,14 @@
                         <label>Prix (CFA) *</label>
                         <input v-model="form.prix" type="number" min="0" step="1" class="form-control" placeholder="Ex: 5000" />
                         <small v-if="formErrors.prix" class="text-danger d-block mt-1">{{ formErrors.prix[0] }}</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Contrat <span class="text-muted">(optionnel — laisser vide pour un tarif global)</span></label>
+                        <select v-model="form.contrat_id" class="form-control">
+                            <option :value="null">Tous les contrats (global)</option>
+                            <option v-for="c in contrats" :key="c.id" :value="c.id">{{ c.numero }}</option>
+                        </select>
+                        <small v-if="formErrors.contrat_id" class="text-danger d-block mt-1">{{ formErrors.contrat_id[0] }}</small>
                     </div>
                     <div v-if="editingTarif" class="form-group mb-0">
                         <div class="alert alert-warning py-2 px-3 mb-0" style="font-size:0.88rem;">
@@ -235,6 +248,7 @@ import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
 const props = defineProps({
     tarifs:    { type: Array, default: () => [] },
     epaisseurs: { type: Array, default: () => [] },
+    contrats:  { type: Array, default: () => [] },
 });
 
 const appName = import.meta.env.VITE_APP_NAME;
@@ -268,7 +282,7 @@ function openBenefices(tarif) {
 const form = ref(buildEmptyForm());
 
 function buildEmptyForm() {
-    return { categorie: '', epaisseur: '', prix: '', update_lignes: false };
+    return { categorie: '', epaisseur: '', prix: '', contrat_id: null, update_lignes: false };
 }
 
 const epaisseurOptions = computed(() =>
@@ -299,7 +313,7 @@ function openAddModal() {
 
 function startEdit(tarif) {
     editingTarif.value = tarif;
-    form.value = { categorie: tarif.categorie, epaisseur: String(Number(tarif.epaisseur)), prix: tarif.prix };
+    form.value = { categorie: tarif.categorie, epaisseur: String(Number(tarif.epaisseur)), prix: tarif.prix, contrat_id: tarif.contrat_id ?? null, update_lignes: false };
     formError.value = '';
     formErrors.value = {};
     showFormModal.value = true;
@@ -319,9 +333,10 @@ function submitForm() {
     formErrors.value = {};
 
     const payload = {
-        categorie: form.value.categorie,
-        epaisseur: form.value.epaisseur,
-        prix: form.value.prix,
+        categorie:   form.value.categorie,
+        epaisseur:   form.value.epaisseur,
+        prix:        form.value.prix,
+        contrat_id:  form.value.contrat_id || null,
         ...(editingTarif.value ? { update_lignes: form.value.update_lignes } : {}),
     };
 
