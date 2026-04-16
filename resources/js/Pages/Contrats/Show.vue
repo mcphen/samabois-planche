@@ -55,7 +55,7 @@
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Code couleur</th><th>Categorie</th><th>Epaisseur</th><th>Prevues</th><th>Livrees</th><th>Disponibles</th><th>Prix de revient</th><th>Total vendu</th><th>Bénéfice total</th><th>Actions</th>
+                            <th>Code couleur</th><th>Categorie</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th class="text-center">Prix de revient</th><th class="text-center">Total vendu</th><th class="text-center">Bénéfice total</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -72,14 +72,44 @@
                                 </div>
                             </td>
                             <td><span class="badge" :class="categorieBadgeClass(detail.categorie)">{{ categorieLabel(detail.categorie) }}</span></td>
-                            <td>{{ formatDecimal(detail.epaisseur) }}</td>
-                            <td>{{ detail.quantite_prevue || 0 }}</td>
-                            <td>{{ detail.total_quantite_livree || 0 }}</td>
-                            <td class="font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
-                            <td>{{ detail.prix_de_revient !== null && detail.prix_de_revient !== undefined ? formatCurrency(detail.prix_de_revient) : '-' }}</td>
-                            <td>{{ detail.total_prix_total ? formatCurrency(detail.total_prix_total) : '-' }}</td>
-                            <td :class="detail.profit_total !== null ? (detail.profit_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
-                                {{ detail.profit_total !== null ? formatCurrency(detail.profit_total) : '-' }}
+                            <td class="text-center">{{ formatDecimal(detail.epaisseur) }}</td>
+                            <td class="text-center">{{ detail.quantite_prevue || 0 }}</td>
+                            <td class="text-center">{{ detail.total_quantite_livree || 0 }}</td>
+                            <td class="text-center font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
+                            <td class="text-center">
+                                <div v-if="editingPriceDetailId === detail.id" class="d-flex align-items-center" style="gap:4px;">
+                                    <input 
+                                        v-model="inlinePrice" 
+                                        type="number" 
+                                        min="0" 
+                                        step="1" 
+                                        class="form-control form-control-sm" 
+                                        @keyup.enter="savePriceInline(detail)"
+                                        @keyup.esc="cancelEditPrice"
+                                        placeholder="Prix"
+                                        autofocus
+                                    />
+                                    <button type="button" class="btn btn-sm btn-success" @click="savePriceInline(detail)" title="Enregistrer">
+                                        <i class="fa fa-check"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" @click="cancelEditPrice" title="Annuler">
+                                        <i class="fa fa-times"></i>
+                                    </button>
+                                </div>
+                                <div v-else class="d-flex align-items-center justify-content-center" style="gap:6px;" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }">
+                                    <span v-if="detail.prix_de_revient !== null && detail.prix_de_revient !== undefined">
+                                        {{ formatCurrency(detail.prix_de_revient) }}
+                                    </span>
+                                    <button v-if="isAdmin" type="button" class="btn btn-sm" :class="detail.prix_de_revient ? 'btn-outline-primary' : 'btn-outline-success'" @click="startEditPrice(detail)" :title="detail.prix_de_revient ? 'Modifier' : 'Ajouter'">
+                                        <i :class="detail.prix_de_revient ? 'fa fa-pencil' : 'fa fa-plus'"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="text-center">{{ detail.total_prix_total ? formatCurrency(detail.total_prix_total) : '-' }}</td>
+                            <td class="text-center" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }" :style="{ 'color': detail.profit_total !== null ? (detail.profit_total >= 0 ? '#155724' : '#721c24') : '' }">
+                                <span :class="detail.profit_total !== null ? (detail.profit_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
+                                    {{ detail.profit_total !== null ? formatCurrency(detail.profit_total) : '-' }}
+                                </span>
                             </td>
                             <td>
                                 <div v-if="isAdmin" class="d-flex flex-wrap" style="gap:6px;">
@@ -343,6 +373,9 @@ const submittingDetailEdit = ref(false);
 const detailEditFormError = ref('');
 const detailEditErrors = ref({});
 const selectedDetail = ref(null);
+const editingPriceDetailId = ref(null);
+const inlinePrice = ref('');
+const justUpdatedDetailId = ref(null);
 const epaisseurOptions = computed(() => props.epaisseurs.map((item) => {
     const value = extractEpaisseurValue(item);
     return value ? { id: item.id, label: item.intitule, value } : null;
@@ -638,8 +671,85 @@ function deleteDetail(detail) {
             });
     });
 }
+function startEditPrice(detail) {
+    editingPriceDetailId.value = detail.id;
+    inlinePrice.value = detail.prix_de_revient !== null && detail.prix_de_revient !== undefined ? String(detail.prix_de_revient) : '';
+}
+function cancelEditPrice() {
+    editingPriceDetailId.value = null;
+    inlinePrice.value = '';
+}
+function savePriceInline(detail) {
+    const newPrice = inlinePrice.value !== '' ? parseFloat(inlinePrice.value) : null;
+    
+    if (newPrice === detail.prix_de_revient) {
+        cancelEditPrice();
+        return;
+    }
+
+    // Sauvegarde des anciennes valeurs
+    const oldPrice = detail.prix_de_revient;
+    const oldProfitTotal = detail.profit_total;
+    const oldCoutTotal = detail.cout_total;
+
+    // Mise à jour locale immédiate
+    detail.prix_de_revient = newPrice;
+    justUpdatedDetailId.value = detail.id;
+    cancelEditPrice();
+
+    // Animation: retire le highlight après 1.5s
+    setTimeout(() => {
+        justUpdatedDetailId.value = null;
+    }, 1500);
+
+    // Appel API pour mettre à jour et récupérer les données recalculées
+    axios.put(`/admin/planches/${detail.planche_id}/lignes/${detail.id}`, {
+        code_couleur: detail.code_couleur,
+        categorie: detail.categorie,
+        epaisseur: detail.epaisseur,
+        quantite_prevue: detail.quantite_prevue,
+        prix_de_revient: newPrice,
+    })
+        .then((response) => {
+            // Appliquer les données recalculées du serveur
+            if (response.data?.data?.detail) {
+                const updated = response.data.data.detail;
+                if (updated.profit_total !== undefined) detail.profit_total = updated.profit_total;
+                if (updated.cout_total !== undefined) detail.cout_total = updated.cout_total;
+            }
+        })
+        .catch((error) => {
+            // Restaurer les anciennes valeurs en cas d'erreur
+            detail.prix_de_revient = oldPrice;
+            detail.profit_total = oldProfitTotal;
+            detail.cout_total = oldCoutTotal;
+            justUpdatedDetailId.value = null;
+            Swal.fire(
+                'Erreur',
+                error.response?.data?.message || 'Impossible de mettre a jour le prix.',
+                'error',
+            );
+        });
+}
 function categorieLabel(cat) { return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-'; }
 function categorieBadgeClass(cat) { return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light'; }
 function formatDecimal(value) { return value === null || value === undefined || value === '' ? '-' : Number(value).toFixed(2); }
 function formatCurrency(value) { const num = Math.round(Number(value || 0)); return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' CFA'; }
 </script>
+
+<style scoped>
+.highlight-updated {
+    animation: highlightFade 1.5s ease-in-out forwards;
+}
+
+@keyframes highlightFade {
+    0% {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    100% {
+        background-color: transparent;
+        color: inherit;
+    }
+}
+</style>

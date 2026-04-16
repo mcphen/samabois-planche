@@ -62,8 +62,7 @@
                                         <th>Qte livree</th>
                                         <th>Prix unitaire</th>
                                         <th>Total</th>
-                                        <th>Benefice unit.</th>
-                                        <th>Benefice total</th>
+                                 
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -84,12 +83,7 @@
                                         <td>{{ ligne.quantite_livree }}</td>
                                         <td>{{ formatCurrency(ligne.prix_unitaire) }}</td>
                                         <td>{{ formatCurrency(ligne.prix_total) }}</td>
-                                        <td :class="ligne.benefice_unitaire !== null ? (ligne.benefice_unitaire >= 0 ? 'text-success' : 'text-danger') : 'text-muted'">
-                                            {{ ligne.benefice_unitaire !== null ? formatCurrency(ligne.benefice_unitaire) : '-' }}
-                                        </td>
-                                        <td :class="ligne.benefice_total !== null ? (ligne.benefice_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
-                                            {{ ligne.benefice_total !== null ? formatCurrency(ligne.benefice_total) : '-' }}
-                                        </td>
+                                        
                                     </tr>
                                 </tbody>
                                 <tfoot v-if="bonLivraison.lignes.length">

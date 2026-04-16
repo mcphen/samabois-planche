@@ -462,6 +462,10 @@ class PlancheController extends Controller
                 return [
                     'redirect_to' => $redirectTo,
                     'planche_id'  => $targetPlanche->id,
+                    'detail' => [
+                        'profit_total' => $detail->prix_de_revient !== null ? ($detail->bonLivraisonLignes()->sum('prix_total') - ($detail->prix_de_revient * $detail->bonLivraisonLignes()->sum('quantite_livree'))) : null,
+                        'cout_total' => $detail->prix_de_revient !== null ? ($detail->prix_de_revient * $detail->bonLivraisonLignes()->sum('quantite_livree')) : null,
+                    ],
                 ];
             });
 
