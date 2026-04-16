@@ -147,8 +147,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'show'])->name('planche-bons-livraison.show');
             Route::get('/{plancheBonLivraison}/generate-pdf', [PlancheBonLivraisonController::class, 'generatePDF'])->name('planche-bons-livraison.generatePDF');
             Route::post('/store', [PlancheBonLivraisonController::class, 'store'])->name('planche-bons-livraison.store');
-            Route::middleware('role:admin')->group(function () {
+            Route::middleware('role:admin,comptable')->group(function () {
                 Route::put('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'update'])->name('planche-bons-livraison.update');
+            });
+            Route::middleware('role:admin')->group(function () {
                 Route::delete('/{plancheBonLivraison}', [PlancheBonLivraisonController::class, 'destroy'])->name('planche-bons-livraison.destroy');
             });
         });
