@@ -74,7 +74,7 @@
                                 <th style="width:15%;">Categorie</th>
                                 <th style="width:13%;">Epaisseur</th>
                                 <th style="width:13%;">Quantite prevue</th>
-                                <th style="width:15%;">Prix de revient</th>
+                                <th v-if="isAdmin" style="width:15%;">Prix de revient</th>
                                 <th class="text-center" style="width:14%;">Actions</th>
                             </tr>
                         </thead>
@@ -145,7 +145,7 @@
                                         {{ errors[`rows.${index}.quantite_prevue`][0] }}
                                     </small>
                                 </td>
-                                <td>
+                                <td v-if="isAdmin">
                                     <input
                                         v-model="row.prix_de_revient"
                                         type="number"
@@ -251,7 +251,11 @@ import PlancheColorInput from '@/Components/PlancheColorInput.vue';
 const props = defineProps({
     suppliers: { type: Array, default: () => [] },
     epaisseurs: { type: Array, default: () => [] },
+    userRole: { type: String, default: 'user' },
 });
+
+const isAdmin = computed(() => props.userRole === 'admin');
+const isComptable = computed(() => props.userRole === 'comptable');
 
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [

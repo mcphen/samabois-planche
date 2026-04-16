@@ -43,6 +43,7 @@ class PlancheController extends Controller
             'epaisseurs' => Epaisseur::query()
                 ->orderBy('intitule')
                 ->get(['id', 'intitule', 'slug']),
+            'userRole' => auth()->user()->role,
         ]);
     }
 

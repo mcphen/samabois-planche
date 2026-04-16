@@ -55,11 +55,11 @@
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Code couleur</th><th>Categorie</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th class="text-center">Prix de revient</th><th class="text-center">Total vendu</th><th class="text-center">Bénéfice total</th><th>Actions</th>
+                            <th>Code couleur</th><th>Categorie</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th v-if="isAdmin" class="text-center">Prix de revient</th><th class="text-center">Total vendu</th><th v-if="isAdmin" class="text-center">Bénéfice total</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="!contractDetails.length"><td colspan="10" class="text-center py-4">Aucun detail pour ce contrat.</td></tr>
+                        <tr v-if="!contractDetails.length"><td :colspan="isAdmin ? 10 : 8" class="text-center py-4">Aucun detail pour ce contrat.</td></tr>
                         <tr v-for="detail in contractDetails" :key="detail.id">
                             
                             <td>
@@ -76,7 +76,7 @@
                             <td class="text-center">{{ detail.quantite_prevue || 0 }}</td>
                             <td class="text-center">{{ detail.total_quantite_livree || 0 }}</td>
                             <td class="text-center font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
-                            <td class="text-center">
+                            <td v-if="isAdmin" class="text-center">
                                 <div v-if="editingPriceDetailId === detail.id" class="d-flex align-items-center" style="gap:4px;">
                                     <input 
                                         v-model="inlinePrice" 
@@ -106,15 +106,15 @@
                                 </div>
                             </td>
                             <td class="text-center">{{ detail.total_prix_total ? formatCurrency(detail.total_prix_total) : '-' }}</td>
-                            <td class="text-center" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }" :style="{ 'color': detail.profit_total !== null ? (detail.profit_total >= 0 ? '#155724' : '#721c24') : '' }">
+                            <td v-if="isAdmin" class="text-center" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }" :style="{ 'color': detail.profit_total !== null ? (detail.profit_total >= 0 ? '#155724' : '#721c24') : '' }">
                                 <span :class="detail.profit_total !== null ? (detail.profit_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
                                     {{ detail.profit_total !== null ? formatCurrency(detail.profit_total) : '-' }}
                                 </span>
                             </td>
                             <td>
-                                <div v-if="isAdmin" class="d-flex flex-wrap" style="gap:6px;">
+                                <div v-if="isAdmin || isComptable" class="d-flex flex-wrap" style="gap:6px;">
                                     <button type="button" class="btn btn-warning btn-sm" @click="openDetailEditModal(detail)">Modifier</button>
-                                    <button type="button" class="btn btn-danger btn-sm" @click="deleteDetail(detail)">Supprimer</button>
+                                    <button v-if="isAdmin" type="button" class="btn btn-danger btn-sm" @click="deleteDetail(detail)">Supprimer</button>
                                 </div>
                                 <span v-else class="text-muted">-</span>
                             </td>
@@ -162,7 +162,7 @@
                                 <table class="table table-sm table-bordered table-hover mb-0" style="background:#fff;">
                                     <thead style="background:#f0f4ff;">
                                         <tr>
-                                            <th style="width:28%;">Code couleur</th><th style="width:15%;">Categorie</th><th style="width:13%;">Epaisseur</th><th style="width:13%;">Quantite prevue</th><th style="width:17%;">Prix de revient</th><th class="text-center" style="width:14%;">Actions</th>
+                                            <th style="width:28%;">Code couleur</th><th style="width:15%;">Categorie</th><th style="width:13%;">Epaisseur</th><th style="width:13%;">Quantite prevue</th><th v-if="isAdmin" style="width:17%;">Prix de revient</th><th class="text-center" style="width:14%;">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -203,7 +203,7 @@
                                                 <input v-model="row.quantite_prevue" type="number" min="1" step="1" class="form-control form-control-sm" placeholder="ex: 100" />
                                                 <small v-if="createErrors[`rows.${index}.quantite_prevue`]" class="text-danger d-block mt-1">{{ createErrors[`rows.${index}.quantite_prevue`][0] }}</small>
                                             </td>
-                                            <td>
+                                            <td v-if="isAdmin">
                                                 <input v-model="row.prix_de_revient" type="number" min="0" step="1" class="form-control form-control-sm" placeholder="Optionnel" />
                                                 <small v-if="createErrors[`rows.${index}.prix_de_revient`]" class="text-danger d-block mt-1">{{ createErrors[`rows.${index}.prix_de_revient`][0] }}</small>
                                             </td>
@@ -316,7 +316,7 @@
                         <input v-model="detailEditForm.quantite_prevue" type="number" min="1" step="1" class="form-control" />
                         <small v-if="detailEditErrors.quantite_prevue" class="text-danger d-block mt-1">{{ detailEditErrors.quantite_prevue[0] }}</small>
                     </div>
-                    <div class="form-group mb-0">
+                    <div v-if="isAdmin" class="form-group mb-0">
                         <label>Prix de revient <small class="text-muted">(optionnel)</small></label>
                         <input v-model="detailEditForm.prix_de_revient" type="number" min="0" step="1" class="form-control" placeholder="Ex: 5000" />
                         <small v-if="detailEditErrors.prix_de_revient" class="text-danger d-block mt-1">{{ detailEditErrors.prix_de_revient[0] }}</small>
@@ -352,6 +352,7 @@ const props = defineProps({
 });
 
 const isAdmin = computed(() => props.userRole === 'admin');
+const isComptable = computed(() => props.userRole === 'comptable');
 
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
