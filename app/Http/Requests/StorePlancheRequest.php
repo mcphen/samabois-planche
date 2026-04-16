@@ -23,7 +23,6 @@ class StorePlancheRequest extends FormRequest
             'groupes.*.epaisseurs'                     => ['required', 'array', 'min:1'],
             'groupes.*.epaisseurs.*.epaisseur'          => ['required', 'numeric', 'min:0.01'],
             'groupes.*.epaisseurs.*.quantite_prevue'   => ['required', 'integer', 'min:1'],
-            'groupes.*.epaisseurs.*.prix_de_revient'   => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

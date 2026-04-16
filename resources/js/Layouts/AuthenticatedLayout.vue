@@ -171,7 +171,8 @@ const allMenuItems = [
         icon: 'fa fa-cogs',
         roles: ['admin'],
         subMenu: [
-            { name: 'Paramètres', url: '/admin/configuration' },
+            { name: 'Paramètres',          url: '/admin/configuration' },
+            { name: 'Tarifs prix de revient', url: '/admin/configuration/planche-tarifs' },
         ],
     },
     {

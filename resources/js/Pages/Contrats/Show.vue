@@ -77,33 +77,10 @@
                             <td class="text-center">{{ detail.total_quantite_livree || 0 }}</td>
                             <td class="text-center font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
                             <td v-if="isAdmin" class="text-center">
-                                <div v-if="editingPriceDetailId === detail.id" class="d-flex align-items-center" style="gap:4px;">
-                                    <input 
-                                        v-model="inlinePrice" 
-                                        type="number" 
-                                        min="0" 
-                                        step="1" 
-                                        class="form-control form-control-sm" 
-                                        @keyup.enter="savePriceInline(detail)"
-                                        @keyup.esc="cancelEditPrice"
-                                        placeholder="Prix"
-                                        autofocus
-                                    />
-                                    <button type="button" class="btn btn-sm btn-success" @click="savePriceInline(detail)" title="Enregistrer">
-                                        <i class="fa fa-check"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-secondary" @click="cancelEditPrice" title="Annuler">
-                                        <i class="fa fa-times"></i>
-                                    </button>
-                                </div>
-                                <div v-else class="d-flex align-items-center justify-content-center" style="gap:6px;" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }">
-                                    <span v-if="detail.prix_de_revient !== null && detail.prix_de_revient !== undefined">
-                                        {{ formatCurrency(detail.prix_de_revient) }}
-                                    </span>
-                                    <button v-if="isAdmin" type="button" class="btn btn-sm" :class="detail.prix_de_revient ? 'btn-outline-primary' : 'btn-outline-success'" @click="startEditPrice(detail)" :title="detail.prix_de_revient ? 'Modifier' : 'Ajouter'">
-                                        <i :class="detail.prix_de_revient ? 'fa fa-pencil' : 'fa fa-plus'"></i>
-                                    </button>
-                                </div>
+                                <span v-if="detail.prix_de_revient !== null && detail.prix_de_revient !== undefined" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }">
+                                    {{ formatCurrency(detail.prix_de_revient) }}
+                                </span>
+                                <span v-else class="text-muted">-</span>
                             </td>
                             <td class="text-center">{{ detail.total_prix_total ? formatCurrency(detail.total_prix_total) : '-' }}</td>
                             <td v-if="isAdmin" class="text-center" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }" :style="{ 'color': detail.profit_total !== null ? (detail.profit_total >= 0 ? '#155724' : '#721c24') : '' }">
@@ -162,7 +139,7 @@
                                 <table class="table table-sm table-bordered table-hover mb-0" style="background:#fff;">
                                     <thead style="background:#f0f4ff;">
                                         <tr>
-                                            <th style="width:28%;">Code couleur</th><th style="width:15%;">Categorie</th><th style="width:13%;">Epaisseur</th><th style="width:13%;">Quantite prevue</th><th v-if="isAdmin" style="width:17%;">Prix de revient</th><th class="text-center" style="width:14%;">Actions</th>
+                                            <th style="width:28%;">Code couleur</th><th style="width:15%;">Categorie</th><th style="width:13%;">Epaisseur</th><th style="width:17%;">Quantite prevue</th><th class="text-center" style="width:17%;">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -202,10 +179,6 @@
                                             <td>
                                                 <input v-model="row.quantite_prevue" type="number" min="1" step="1" class="form-control form-control-sm" placeholder="ex: 100" />
                                                 <small v-if="createErrors[`rows.${index}.quantite_prevue`]" class="text-danger d-block mt-1">{{ createErrors[`rows.${index}.quantite_prevue`][0] }}</small>
-                                            </td>
-                                            <td v-if="isAdmin">
-                                                <input v-model="row.prix_de_revient" type="number" min="0" step="1" class="form-control form-control-sm" placeholder="Optionnel" />
-                                                <small v-if="createErrors[`rows.${index}.prix_de_revient`]" class="text-danger d-block mt-1">{{ createErrors[`rows.${index}.prix_de_revient`][0] }}</small>
                                             </td>
                                             <td class="text-center align-middle">
                                                 <div class="d-flex justify-content-center" style="gap:6px;">
@@ -311,15 +284,10 @@
                         </select>
                         <small v-if="detailEditErrors.epaisseur" class="text-danger d-block mt-1">{{ detailEditErrors.epaisseur[0] }}</small>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group mb-0">
                         <label>Quantite prevue *</label>
                         <input v-model="detailEditForm.quantite_prevue" type="number" min="1" step="1" class="form-control" />
                         <small v-if="detailEditErrors.quantite_prevue" class="text-danger d-block mt-1">{{ detailEditErrors.quantite_prevue[0] }}</small>
-                    </div>
-                    <div v-if="isAdmin" class="form-group mb-0">
-                        <label>Prix de revient <small class="text-muted">(optionnel)</small></label>
-                        <input v-model="detailEditForm.prix_de_revient" type="number" min="0" step="1" class="form-control" placeholder="Ex: 5000" />
-                        <small v-if="detailEditErrors.prix_de_revient" class="text-danger d-block mt-1">{{ detailEditErrors.prix_de_revient[0] }}</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -374,8 +342,6 @@ const submittingDetailEdit = ref(false);
 const detailEditFormError = ref('');
 const detailEditErrors = ref({});
 const selectedDetail = ref(null);
-const editingPriceDetailId = ref(null);
-const inlinePrice = ref('');
 const justUpdatedDetailId = ref(null);
 const epaisseurOptions = computed(() => props.epaisseurs.map((item) => {
     const value = extractEpaisseurValue(item);
@@ -432,7 +398,6 @@ function buildInitialDetailEditForm() {
         categorie: '',
         epaisseur: '',
         quantite_prevue: '',
-        prix_de_revient: '',
     };
 }
 
@@ -445,7 +410,6 @@ function createRow(defaults = {}) {
         categorie: defaults.categorie || '',
         epaisseur: normalizeEpaisseurValue(defaults.epaisseur),
         quantite_prevue: defaults.quantite_prevue || '',
-        prix_de_revient: defaults.prix_de_revient || '',
     };
 }
 
@@ -519,7 +483,7 @@ function buildPayload() {
             groupes.push({ code_couleur: row.code_couleur, categorie: row.categorie, epaisseurs: [] });
         }
         const epaisseurIndex = groupes[groupIndex].epaisseurs.length;
-        groupes[groupIndex].epaisseurs.push({ epaisseur: row.epaisseur, quantite_prevue: row.quantite_prevue, prix_de_revient: row.prix_de_revient !== '' ? row.prix_de_revient : null });
+        groupes[groupIndex].epaisseurs.push({ epaisseur: row.epaisseur, quantite_prevue: row.quantite_prevue });
         rowMap.push({ groupIndex, epaisseurIndex });
     });
     return { payload: { supplier_id: createForm.value.supplier_id, numero_contrat: createForm.value.numero_contrat, groupes }, rowMap };
@@ -609,7 +573,6 @@ function openDetailEditModal(detail) {
         categorie: detail.categorie || '',
         epaisseur: normalizeEpaisseurValue(detail.epaisseur),
         quantite_prevue: detail.quantite_prevue || '',
-        prix_de_revient: detail.prix_de_revient !== null && detail.prix_de_revient !== undefined ? detail.prix_de_revient : '',
     };
     showDetailEditModal.value = true;
 }
@@ -631,7 +594,6 @@ function submitDetailEditForm() {
         categorie: detailEditForm.value.categorie,
         epaisseur: detailEditForm.value.epaisseur,
         quantite_prevue: detailEditForm.value.quantite_prevue,
-        prix_de_revient: detailEditForm.value.prix_de_revient !== '' ? detailEditForm.value.prix_de_revient : null,
     })
         .then(() => {
             closeDetailEditModal();
@@ -671,66 +633,6 @@ function deleteDetail(detail) {
                 );
             });
     });
-}
-function startEditPrice(detail) {
-    editingPriceDetailId.value = detail.id;
-    inlinePrice.value = detail.prix_de_revient !== null && detail.prix_de_revient !== undefined ? String(detail.prix_de_revient) : '';
-}
-function cancelEditPrice() {
-    editingPriceDetailId.value = null;
-    inlinePrice.value = '';
-}
-function savePriceInline(detail) {
-    const newPrice = inlinePrice.value !== '' ? parseFloat(inlinePrice.value) : null;
-    
-    if (newPrice === detail.prix_de_revient) {
-        cancelEditPrice();
-        return;
-    }
-
-    // Sauvegarde des anciennes valeurs
-    const oldPrice = detail.prix_de_revient;
-    const oldProfitTotal = detail.profit_total;
-    const oldCoutTotal = detail.cout_total;
-
-    // Mise à jour locale immédiate
-    detail.prix_de_revient = newPrice;
-    justUpdatedDetailId.value = detail.id;
-    cancelEditPrice();
-
-    // Animation: retire le highlight après 1.5s
-    setTimeout(() => {
-        justUpdatedDetailId.value = null;
-    }, 1500);
-
-    // Appel API pour mettre à jour et récupérer les données recalculées
-    axios.put(`/admin/planches/${detail.planche_id}/lignes/${detail.id}`, {
-        code_couleur: detail.code_couleur,
-        categorie: detail.categorie,
-        epaisseur: detail.epaisseur,
-        quantite_prevue: detail.quantite_prevue,
-        prix_de_revient: newPrice,
-    })
-        .then((response) => {
-            // Appliquer les données recalculées du serveur
-            if (response.data?.data?.detail) {
-                const updated = response.data.data.detail;
-                if (updated.profit_total !== undefined) detail.profit_total = updated.profit_total;
-                if (updated.cout_total !== undefined) detail.cout_total = updated.cout_total;
-            }
-        })
-        .catch((error) => {
-            // Restaurer les anciennes valeurs en cas d'erreur
-            detail.prix_de_revient = oldPrice;
-            detail.profit_total = oldProfitTotal;
-            detail.cout_total = oldCoutTotal;
-            justUpdatedDetailId.value = null;
-            Swal.fire(
-                'Erreur',
-                error.response?.data?.message || 'Impossible de mettre a jour le prix.',
-                'error',
-            );
-        });
 }
 function categorieLabel(cat) { return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-'; }
 function categorieBadgeClass(cat) { return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light'; }

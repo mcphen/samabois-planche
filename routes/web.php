@@ -14,6 +14,7 @@ use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EpaisseurController;
 use App\Http\Controllers\PlancheCouleurController;
+use App\Http\Controllers\PlancheTarifController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\SupplierConfigurationController;
 /*
@@ -113,7 +114,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/configuration/planche-couleurs', [PlancheCouleurController::class, 'index'])->name('configuration.planche-couleurs.index');
         });
 
-        // Routes accessibles par admin ET comptable
+            Route::prefix('/configuration')->middleware('role:admin')->group(function () {
+                Route::get('/planche-tarifs', [PlancheTarifController::class, 'index'])->name('configuration.planche-tarifs.index');
+                Route::post('/planche-tarifs', [PlancheTarifController::class, 'store'])->name('configuration.planche-tarifs.store');
+                Route::put('/planche-tarifs/{plancheTarif}', [PlancheTarifController::class, 'update'])->name('configuration.planche-tarifs.update');
+                Route::delete('/planche-tarifs/{plancheTarif}', [PlancheTarifController::class, 'destroy'])->name('configuration.planche-tarifs.destroy');
+                Route::get('/planche-tarifs/{plancheTarif}/benefices', [PlancheTarifController::class, 'benefices'])->name('configuration.planche-tarifs.benefices');
+            });
         Route::prefix('/contrats')->group(function () {
             Route::get('/', [ContratController::class, 'index'])->name('contrats.index');
             Route::get('/validate', [ContratController::class, 'checkNumero'])->name('contrats.validate');

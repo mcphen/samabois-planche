@@ -73,9 +73,8 @@
                                 <th style="width:30%;">Code couleur</th>
                                 <th style="width:15%;">Categorie</th>
                                 <th style="width:13%;">Epaisseur</th>
-                                <th style="width:13%;">Quantite prevue</th>
-                                <th v-if="isAdmin" style="width:15%;">Prix de revient</th>
-                                <th class="text-center" style="width:14%;">Actions</th>
+                                <th style="width:17%;">Quantite prevue</th>
+                                <th class="text-center" style="width:15%;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -143,19 +142,6 @@
                                     />
                                     <small v-if="errors[`rows.${index}.quantite_prevue`]" class="text-danger d-block mt-1">
                                         {{ errors[`rows.${index}.quantite_prevue`][0] }}
-                                    </small>
-                                </td>
-                                <td v-if="isAdmin">
-                                    <input
-                                        v-model="row.prix_de_revient"
-                                        type="number"
-                                        min="0"
-                                        step="1"
-                                        class="form-control form-control-sm"
-                                        placeholder="Optionnel"
-                                    />
-                                    <small v-if="errors[`rows.${index}.prix_de_revient`]" class="text-danger d-block mt-1">
-                                        {{ errors[`rows.${index}.prix_de_revient`][0] }}
                                     </small>
                                 </td>
                                 <td class="text-center align-middle">
@@ -327,7 +313,6 @@ function createRow(defaults = {}) {
         categorie: defaults.categorie || '',
         epaisseur: defaults.epaisseur || '',
         quantite_prevue: defaults.quantite_prevue || '',
-        prix_de_revient: defaults.prix_de_revient || '',
     };
 }
 
@@ -347,7 +332,6 @@ function addRow(index) {
         categorie: source?.categorie || '',
         epaisseur: source?.epaisseur || '',
         quantite_prevue: source?.quantite_prevue || '',
-        prix_de_revient: source?.prix_de_revient || '',
     }));
 }
 
@@ -414,7 +398,6 @@ function buildPayload() {
         groupes[groupIndex].epaisseurs.push({
             epaisseur: row.epaisseur,
             quantite_prevue: row.quantite_prevue,
-            prix_de_revient: row.prix_de_revient !== '' ? row.prix_de_revient : null,
         });
 
         rowMap.push({ groupIndex, epaisseurIndex });

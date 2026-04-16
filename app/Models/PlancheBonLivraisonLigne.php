@@ -19,21 +19,22 @@ class PlancheBonLivraisonLigne extends Model
         'quantite_livree',
         'prix_unitaire',
         'prix_total',
+        'prix_de_revient',
     ];
 
     protected $casts = [
-        'quantite_livree' => 'integer',
-        'prix_unitaire' => 'decimal:2',
-        'prix_total' => 'decimal:2',
+        'quantite_livree'  => 'integer',
+        'prix_unitaire'    => 'decimal:2',
+        'prix_total'       => 'decimal:2',
+        'prix_de_revient'  => 'decimal:2',
     ];
 
     public function getBeneficeUnitaireAttribute(): ?float
     {
-        $prixRevient = $this->plancheDetail?->prix_de_revient;
-        if ($prixRevient === null || $this->prix_unitaire === null) {
+        if ($this->prix_unitaire === null || $this->prix_de_revient === null) {
             return null;
         }
-        return (float) $this->prix_unitaire - (float) $prixRevient;
+        return (float) $this->prix_unitaire - (float) $this->prix_de_revient;
     }
 
     public function getBeneficeTotalAttribute(): ?float

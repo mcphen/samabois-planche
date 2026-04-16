@@ -10,6 +10,7 @@ use App\Models\Epaisseur;
 use App\Models\PlancheBenefitHistory;
 use App\Models\PlancheBonLivraison;
 use App\Models\PlancheDetail;
+use App\Models\PlancheTarif;
 use App\Models\Supplier;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
@@ -132,9 +133,12 @@ class PlancheBonLivraisonController extends Controller
                 'statut' => 'valide',
             ]);
 
+            $detailIds   = collect($request->validated('lignes'))->pluck('planche_detail_id')->unique();
+            $detailInfos = PlancheDetail::query()->whereIn('id', $detailIds)->get(['id', 'categorie', 'epaisseur'])->keyBy('id');
+
             $bonLivraison->lignes()->createMany(
                 collect($request->validated('lignes'))
-                    ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne, $contratMap))
+                    ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne, $contratMap, $detailInfos))
                     ->values()
                     ->all()
             );
@@ -149,7 +153,6 @@ class PlancheBonLivraisonController extends Controller
                 'planche_bon_livraison_id' => $bonLivraison->id,
             ]);
 
-            $bonLivraison->load('lignes.plancheDetail:id,prix_de_revient');
             PlancheBenefitHistory::create([
                 'user_id' => auth()->id(),
                 'planche_bon_livraison_id' => $bonLivraison->id,
@@ -160,7 +163,7 @@ class PlancheBonLivraisonController extends Controller
                         'planche_detail_id'  => $ligne->planche_detail_id,
                         'prix_unitaire'      => (float) $ligne->prix_unitaire,
                         'prix_total'         => (float) $ligne->prix_total,
-                        'prix_de_revient'    => $ligne->plancheDetail?->prix_de_revient,
+                        'prix_de_revient'    => $ligne->prix_de_revient !== null ? (float) $ligne->prix_de_revient : null,
                     ])->all(),
                 ],
             ]);
@@ -180,13 +183,13 @@ class PlancheBonLivraisonController extends Controller
     public function update(UpdatePlancheBonLivraisonRequest $request, PlancheBonLivraison $plancheBonLivraison)
     {
         $plancheBonLivraison = DB::transaction(function () use ($request, $plancheBonLivraison) {
-            $plancheBonLivraison->load('lignes.plancheDetail:id,prix_de_revient');
+            $plancheBonLivraison->load('lignes');
             $oldLines = $plancheBonLivraison->lignes->map(fn ($ligne) => [
                 'planche_bon_livraison_ligne_id' => $ligne->id,
                 'planche_detail_id'  => $ligne->planche_detail_id,
                 'prix_unitaire'      => (float) $ligne->prix_unitaire,
                 'prix_total'         => (float) $ligne->prix_total,
-                'prix_de_revient'    => $ligne->plancheDetail?->prix_de_revient,
+                'prix_de_revient'    => $ligne->prix_de_revient !== null ? (float) $ligne->prix_de_revient : null,
             ])->all();
             $oldMontant = (float) $plancheBonLivraison->montant;
 
@@ -202,21 +205,23 @@ class PlancheBonLivraisonController extends Controller
                 ->pluck('id', 'numero');
 
             $plancheBonLivraison->lignes()->delete();
+            $updateDetailIds   = collect($validated['lignes'])->pluck('planche_detail_id')->unique();
+            $updateDetailInfos = PlancheDetail::query()->whereIn('id', $updateDetailIds)->get(['id', 'categorie', 'epaisseur'])->keyBy('id');
             $plancheBonLivraison->lignes()->createMany(
                 collect($validated['lignes'])
-                    ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne, $contratMap))
+                    ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne, $contratMap, $updateDetailInfos))
                     ->values()
                     ->all()
             );
 
             $plancheBonLivraison->recalculerMontant();
-            $plancheBonLivraison->load('lignes.plancheDetail:id,prix_de_revient');
+            $plancheBonLivraison->refresh();
             $newLines = $plancheBonLivraison->lignes->map(fn ($ligne) => [
                 'planche_bon_livraison_ligne_id' => $ligne->id,
                 'planche_detail_id'  => $ligne->planche_detail_id,
                 'prix_unitaire'      => (float) $ligne->prix_unitaire,
                 'prix_total'         => (float) $ligne->prix_total,
-                'prix_de_revient'    => $ligne->plancheDetail?->prix_de_revient,
+                'prix_de_revient'    => $ligne->prix_de_revient !== null ? (float) $ligne->prix_de_revient : null,
             ])->all();
 
             if (json_encode($oldLines) !== json_encode($newLines) || $oldMontant !== (float) $plancheBonLivraison->montant) {
@@ -260,16 +265,16 @@ class PlancheBonLivraisonController extends Controller
     {
         DB::transaction(function () use ($plancheBonLivraison) {
             // Capturer les données avant suppression
-            $plancheBonLivraison->load('lignes.plancheDetail:id,prix_de_revient');
+            $plancheBonLivraison->load('lignes');
             $deletedData = [
-                'montant' => (float) $plancheBonLivraison->montant,
+                'montant'   => (float) $plancheBonLivraison->montant,
                 'numero_bl' => $plancheBonLivraison->numero_bl,
-                'lines' => $plancheBonLivraison->lignes->map(fn ($ligne) => [
+                'lines'     => $plancheBonLivraison->lignes->map(fn ($ligne) => [
                     'planche_detail_id'  => $ligne->planche_detail_id,
                     'quantite_livree'    => $ligne->quantite_livree,
                     'prix_unitaire'      => (float) $ligne->prix_unitaire,
                     'prix_total'         => (float) $ligne->prix_total,
-                    'prix_de_revient'    => $ligne->plancheDetail?->prix_de_revient,
+                    'prix_de_revient'    => $ligne->prix_de_revient !== null ? (float) $ligne->prix_de_revient : null,
                 ])->all(),
             ];
 
@@ -300,8 +305,8 @@ class PlancheBonLivraisonController extends Controller
     {
         return [
             'client:id,name',
-            'lignes:id,planche_bon_livraison_id,planche_detail_id,quantite_livree,prix_unitaire,prix_total',
-            'lignes.plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue,prix_de_revient',
+            'lignes:id,planche_bon_livraison_id,planche_detail_id,contrat_id,quantite_livree,prix_unitaire,prix_total,prix_de_revient',
+            'lignes.plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
             'lignes.plancheDetail.couleur:id,code',
             'lignes.plancheDetail.planche:id,contrat_id',
             'lignes.plancheDetail.planche.contrat:id,supplier_id,numero',
@@ -391,8 +396,10 @@ class PlancheBonLivraisonController extends Controller
     private function decorateBonLivraison(PlancheBonLivraison $bonLivraison): array
     {
         $lignes = $bonLivraison->lignes->map(function ($ligne) {
-            $prixDeRevient    = $ligne->plancheDetail?->prix_de_revient !== null ? (float) $ligne->plancheDetail->prix_de_revient : null;
-            $beneficeUnitaire = ($prixDeRevient !== null) ? ((float) $ligne->prix_unitaire - $prixDeRevient) : null;
+            $prixDeRevient    = $ligne->prix_de_revient !== null ? (float) $ligne->prix_de_revient : null;
+            $beneficeUnitaire = ($prixDeRevient !== null && $ligne->prix_unitaire !== null)
+                ? ((float) $ligne->prix_unitaire - $prixDeRevient)
+                : null;
             $beneficeTotal    = ($beneficeUnitaire !== null) ? $beneficeUnitaire * (int) $ligne->quantite_livree : null;
 
             return [
@@ -436,17 +443,26 @@ class PlancheBonLivraisonController extends Controller
         ];
     }
 
-    private function mapBonLivraisonLinePayload(array $ligne, $contratMap): array
+    private function mapBonLivraisonLinePayload(array $ligne, $contratMap, $detailInfos = null): array
     {
         $quantiteLivree = (int) $ligne['quantite_livree'];
-        $prixUnitaire = round((float) $ligne['prix_unitaire'], 2);
+        $prixUnitaire   = round((float) $ligne['prix_unitaire'], 2);
+
+        $prixDeRevient = null;
+        if ($detailInfos) {
+            $detail = $detailInfos->get($ligne['planche_detail_id']);
+            if ($detail) {
+                $prixDeRevient = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur);
+            }
+        }
 
         return [
             'planche_detail_id' => $ligne['planche_detail_id'],
-            'contrat_id' => $contratMap->get($ligne['contrat']),
-            'quantite_livree' => $quantiteLivree,
-            'prix_unitaire' => $prixUnitaire,
-            'prix_total' => round($quantiteLivree * $prixUnitaire, 2),
+            'contrat_id'        => $contratMap->get($ligne['contrat']),
+            'quantite_livree'   => $quantiteLivree,
+            'prix_unitaire'     => $prixUnitaire,
+            'prix_total'        => round($quantiteLivree * $prixUnitaire, 2),
+            'prix_de_revient'   => $prixDeRevient,
         ];
     }
 

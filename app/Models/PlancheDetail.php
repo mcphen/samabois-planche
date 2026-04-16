@@ -15,13 +15,11 @@ class PlancheDetail extends Model
         'categorie',
         'epaisseur',
         'quantite_prevue',
-        'prix_de_revient',
     ];
 
     protected $casts = [
-        'epaisseur'        => 'decimal:2',
-        'quantite_prevue'  => 'integer',
-        'prix_de_revient'  => 'decimal:2',
+        'epaisseur'       => 'decimal:2',
+        'quantite_prevue' => 'integer',
     ];
 
     public function planche()

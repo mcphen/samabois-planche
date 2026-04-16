@@ -7,6 +7,7 @@ use App\Models\Epaisseur;
 use App\Models\Planche;
 use App\Models\PlancheBenefitHistory;
 use App\Models\PlancheDetail;
+use App\Models\PlancheTarif;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -170,7 +171,7 @@ class ContratController extends Controller
                     ->with([
                         'details' => function ($detailQuery) {
                             $detailQuery
-                                ->select('id', 'planche_id', 'planche_couleur_id', 'categorie', 'epaisseur', 'quantite_prevue', 'prix_de_revient')
+                                ->select('id', 'planche_id', 'planche_couleur_id', 'categorie', 'epaisseur', 'quantite_prevue')
                                 ->with(['couleur:id,code,image_path'])
                                 ->withSum('bonLivraisonLignes as total_quantite_livree', 'quantite_livree')
                                 ->withSum('bonLivraisonLignes as total_prix_total', 'prix_total')
@@ -225,12 +226,14 @@ class ContratController extends Controller
     {
         $quantiteLivree = (int) ($detail->total_quantite_livree ?? 0);
         $totalPrixTotal = (float) ($detail->total_prix_total ?? 0);
+        $prixRevient    = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur);
 
         $detail->setAttribute('total_quantite_livree', $quantiteLivree);
         $detail->setAttribute('quantite_disponible', max((int) $detail->quantite_prevue - $quantiteLivree, 0));
         $detail->setAttribute('total_prix_total', $totalPrixTotal);
-        $detail->setAttribute('cout_total', $detail->prix_de_revient !== null ? (float) $detail->prix_de_revient * $quantiteLivree : null);
-        $detail->setAttribute('profit_total', $detail->prix_de_revient !== null ? $totalPrixTotal - ((float) $detail->prix_de_revient * $quantiteLivree) : null);
+        $detail->setAttribute('prix_de_revient', $prixRevient);
+        $detail->setAttribute('cout_total', $prixRevient !== null ? $prixRevient * $quantiteLivree : null);
+        $detail->setAttribute('profit_total', $prixRevient !== null ? $totalPrixTotal - ($prixRevient * $quantiteLivree) : null);
 
         return $detail;
     }

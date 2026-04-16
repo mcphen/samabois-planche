@@ -109,10 +109,14 @@ class DashboardController extends Controller
         $costQuery = $this->applyDashboardFilters(clone $baseQuery, $request)
             ->join('planche_bon_livraison_lignes as lignes', 'planche_bons_livraison.id', '=', 'lignes.planche_bon_livraison_id')
             ->leftJoin('planche_details as details', 'lignes.planche_detail_id', '=', 'details.id')
+            ->leftJoin('planche_tarifs as tarifs', function ($join) {
+                $join->on('tarifs.categorie', '=', 'details.categorie')
+                     ->on('tarifs.epaisseur', '=', 'details.epaisseur');
+            })
             ->select(
                 DB::raw('YEAR(planche_bons_livraison.date_livraison) as year'),
                 DB::raw('MONTH(planche_bons_livraison.date_livraison) as month'),
-                DB::raw('SUM(COALESCE(lignes.quantite_livree * details.prix_de_revient, 0)) as total_cost')
+                DB::raw('SUM(COALESCE(lignes.quantite_livree * tarifs.prix, 0)) as total_cost')
             )
             ->groupBy(DB::raw('YEAR(planche_bons_livraison.date_livraison), MONTH(planche_bons_livraison.date_livraison)'))
             ->orderBy(DB::raw('YEAR(planche_bons_livraison.date_livraison), MONTH(planche_bons_livraison.date_livraison)'));
