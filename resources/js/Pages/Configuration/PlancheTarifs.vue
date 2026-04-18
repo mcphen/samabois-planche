@@ -74,7 +74,7 @@
     </AuthenticatedLayout>
 
     <!-- Modale ajout / modification -->
-    <div v-if="showFormModal" class="modal d-block" tabindex="-1" role="dialog" style="background:rgba(0,0,0,0.5);">
+    <div v-if="showFormModal" class="modal d-block" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -142,7 +142,7 @@
     </div>
 
     <!-- Modale bénéfices -->
-    <div v-if="showBeneficesModal" class="modal d-block" tabindex="-1" role="dialog" style="background:rgba(0,0,0,0.5);">
+    <div v-if="showBeneficesModal" class="modal d-block" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-xl" role="document" style="max-width:95vw;">
             <div class="modal-content">
                 <div class="modal-header">

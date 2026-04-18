@@ -129,6 +129,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{contrat}/benefit-history', [ContratController::class, 'getBenefitHistory'])->name('contrats.benefit-history');
             Route::middleware('role:admin')->group(function () {
                 Route::put('/{contrat}', [ContratController::class, 'update'])->name('contrats.update');
+                Route::post('/{contrat}/planche-tarifs/batch', [ContratController::class, 'storePlancheTarifsBatch'])->name('contrats.planche-tarifs.batch');
             });
         });
 

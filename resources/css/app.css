@@ -1,3 +1,102 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ─── Modal backdrop ──────────────────────────────────────────── */
+.modal.d-block {
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    animation: modalFadeIn 0.18s ease;
+}
+
+@keyframes modalFadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* ─── Modal dialog ────────────────────────────────────────────── */
+.modal.d-block .modal-dialog {
+    margin: 0;
+    width: 100%;
+    max-width: min(780px, 96vw);
+    animation: modalSlideIn 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* Les modals xl/lg gardent leur largeur propre */
+.modal.d-block .modal-dialog.modal-xl { max-width: min(95vw, 1400px); }
+.modal.d-block .modal-dialog.modal-lg { max-width: min(900px, 96vw); }
+.modal.d-block .modal-dialog.modal-sm { max-width: 400px; }
+
+@keyframes modalSlideIn {
+    from { transform: translateY(-24px) scale(0.97); opacity: 0; }
+    to   { transform: translateY(0)     scale(1);    opacity: 1; }
+}
+
+/* ─── Modal content ───────────────────────────────────────────── */
+.modal.d-block .modal-content {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28), 0 4px 16px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+}
+
+/* ─── Modal header ────────────────────────────────────────────── */
+.modal.d-block .modal-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    border-bottom: none;
+    padding: 1.1rem 1.4rem;
+    border-radius: 0;
+}
+
+.modal.d-block .modal-title {
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.modal.d-block .modal-header .close {
+    color: rgba(255, 255, 255, 0.75);
+    opacity: 1;
+    text-shadow: none;
+    font-size: 1.4rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+    transition: color 0.15s;
+}
+
+.modal.d-block .modal-header .close:hover {
+    color: #ffffff;
+}
+
+/* ─── Modal body ──────────────────────────────────────────────── */
+.modal.d-block .modal-body {
+    padding: 1.4rem;
+    background: #ffffff;
+}
+
+/* ─── Modal footer ────────────────────────────────────────────── */
+.modal.d-block .modal-footer {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    padding: 0.85rem 1.4rem;
+    border-radius: 0 0 16px 16px;
+    gap: 8px;
+}
+
+/* Bouton Annuler → rouge */
+.modal.d-block .modal-footer .btn-secondary {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #ffffff;
+}
+
+.modal.d-block .modal-footer .btn-secondary:hover {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+}

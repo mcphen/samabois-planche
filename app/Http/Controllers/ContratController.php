@@ -41,7 +41,37 @@ class ContratController extends Controller
                 ->orderBy('name')
                 ->get(),
             'userRole' => auth()->user()->role,
+            'planche_tarifs' => PlancheTarif::query()
+                ->where('contrat_id', $contrat->id)
+                ->orderBy('categorie')
+                ->orderBy('epaisseur')
+                ->get(['id', 'contrat_id', 'categorie', 'epaisseur', 'prix']),
         ]);
+    }
+
+    public function storePlancheTarifsBatch(\Illuminate\Http\Request $request, Contrat $contrat): \Illuminate\Http\JsonResponse
+    {
+        $request->validate([
+            'tarifs'             => ['required', 'array', 'min:1'],
+            'tarifs.*.categorie' => ['required', 'in:mate,semi_brillant,brillant'],
+            'tarifs.*.epaisseur' => ['required', 'numeric', 'min:0.01'],
+            'tarifs.*.prix'      => ['required', 'numeric', 'min:0'],
+        ]);
+
+        foreach ($request->input('tarifs') as $item) {
+            PlancheTarif::updateOrCreate(
+                [
+                    'contrat_id' => $contrat->id,
+                    'categorie'  => $item['categorie'],
+                    'epaisseur'  => $item['epaisseur'],
+                ],
+                ['prix' => $item['prix']]
+            );
+        }
+
+        PlancheTarif::clearCache();
+
+        return response()->json(['message' => 'Tarifs enregistres avec succes.']);
     }
 
     public function update(Request $request, Contrat $contrat)

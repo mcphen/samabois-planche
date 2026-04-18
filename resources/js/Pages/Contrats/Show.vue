@@ -11,6 +11,9 @@
                     <Link class="btn btn-outline-info" href="/admin/planche-bons-livraison/create">
                         <i class="fa fa-truck"></i> Nouvelle facture
                     </Link>
+                    <button v-if="isAdmin" type="button" class="btn btn-outline-success" @click="openTarifModal">
+                        <i class="fa fa-tag"></i> Ajouter prix de revient
+                    </button>
                     <button v-if="isAdmin" type="button" class="btn btn-primary" @click="openCreateModal">
                         <i class="fa fa-plus"></i> Ajouter des planches
                     </button>
@@ -49,8 +52,52 @@
         
         </div>
 
-        <div class="card">
-            <div class="header"><h2>Details du contrat</h2></div>
+        <!-- Nav Tabs -->
+        <ul class="nav nav-tabs mb-0" style="border-bottom:0;">
+            <li class="nav-item">
+                <button class="nav-link" :class="{ active: activeTab === 'details' }" @click="activeTab = 'details'">
+                    <i class="fa fa-list mr-1"></i> Detail du contrat
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" :class="{ active: activeTab === 'tarifs' }" @click="activeTab = 'tarifs'">
+                    <i class="fa fa-tag mr-1"></i> Prix de revient
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab: Details du contrat -->
+        <div v-show="activeTab === 'details'" class="card" style="border-top-left-radius:0;">
+            <div class="header">
+                <div class="d-flex align-items-center justify-content-between flex-wrap mb-2" style="gap:8px;">
+                    <h2 class="mb-0">Details du contrat</h2>
+                    <button v-if="hasDetailFilters" type="button" class="btn btn-sm btn-outline-secondary" @click="resetDetailFilters">
+                        <i class="fa fa-times mr-1"></i>Reinitialiser les filtres
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 col-sm-6 mb-2">
+                        <input v-model="filterDetailCouleur" type="text" class="form-control form-control-sm" placeholder="Filtrer par code couleur..." />
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <select v-model="filterDetailCategorie" class="form-control form-control-sm">
+                            <option value="">Toutes les categories</option>
+                            <option value="mate">Mate</option>
+                            <option value="semi_brillant">Semi-brillant</option>
+                            <option value="brillant">Brillant</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 col-sm-6 mb-2">
+                        <select v-model="filterDetailEpaisseur" class="form-control form-control-sm">
+                            <option value="">Toutes les epaisseurs</option>
+                            <option v-for="opt in epaisseurOptions" :key="opt.id" :value="opt.value">{{ opt.label }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 col-sm-6 mb-2 d-flex align-items-center">
+                        <small class="text-muted">{{ filteredContractDetails.length }} / {{ contractDetails.length }} ligne(s)</small>
+                    </div>
+                </div>
+            </div>
             <div class="body table-responsive">
                 <table class="table table-striped mb-0">
                     <thead>
@@ -59,8 +106,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="!contractDetails.length"><td :colspan="isAdmin ? 10 : 8" class="text-center py-4">Aucun detail pour ce contrat.</td></tr>
-                        <tr v-for="detail in contractDetails" :key="detail.id">
+                        <tr v-if="!filteredContractDetails.length"><td :colspan="isAdmin ? 10 : 8" class="text-center py-4 text-muted">{{ contractDetails.length ? 'Aucun resultat pour ces filtres.' : 'Aucun detail pour ce contrat.' }}</td></tr>
+                        <tr v-for="detail in filteredContractDetails" :key="detail.id">
                             
                             <td>
                                 <div class="d-flex align-items-center" style="gap:8px;">
@@ -101,11 +148,64 @@
             </div>
         </div>
 
-        <div class="row clearfix mt-4">
-            <div class="col-12">
-                <BenefitHistory :contrat-id="contrat.id" />
+        <!-- Tab: Prix de revient -->
+        <div v-show="activeTab === 'tarifs'" class="card" style="border-top-left-radius:0;">
+            <div class="header">
+                <div class="d-flex align-items-center justify-content-between flex-wrap mb-2" style="gap:8px;">
+                    <h2 class="mb-0">Prix de revient du contrat</h2>
+                    <div class="d-flex" style="gap:6px;">
+                        <button v-if="hasTarifFilters" type="button" class="btn btn-sm btn-outline-secondary" @click="resetTarifFilters">
+                            <i class="fa fa-times mr-1"></i>Reinitialiser
+                        </button>
+                        <button v-if="isAdmin" type="button" class="btn btn-primary btn-sm" @click="openTarifModal">
+                            <i class="fa fa-plus mr-1"></i> Ajouter prix de revient
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 col-sm-6 mb-2">
+                        <select v-model="filterTarifCategorie" class="form-control form-control-sm">
+                            <option value="">Toutes les categories</option>
+                            <option value="mate">Mate</option>
+                            <option value="semi_brillant">Semi-brillant</option>
+                            <option value="brillant">Brillant</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 col-sm-6 mb-2">
+                        <select v-model="filterTarifEpaisseur" class="form-control form-control-sm">
+                            <option value="">Toutes les epaisseurs</option>
+                            <option v-for="opt in epaisseurOptions" :key="opt.id" :value="opt.value">{{ opt.label }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 col-sm-6 mb-2 d-flex align-items-center">
+                        <small class="text-muted">{{ filteredPlancheTarifs.length }} / {{ plancheTarifs.length }} tarif(s)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="body table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Categorie</th>
+                            <th class="text-center">Epaisseur</th>
+                            <th class="text-center">Prix de revient</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-if="!filteredPlancheTarifs.length">
+                            <td colspan="3" class="text-center py-4 text-muted">{{ plancheTarifs.length ? 'Aucun resultat pour ces filtres.' : 'Aucun prix de revient defini pour ce contrat.' }}</td>
+                        </tr>
+                        <tr v-for="tarif in filteredPlancheTarifs" :key="tarif.id">
+                            <td><span class="badge" :class="categorieBadgeClass(tarif.categorie)">{{ categorieLabel(tarif.categorie) }}</span></td>
+                            <td class="text-center">{{ formatDecimal(tarif.epaisseur) }}</td>
+                            <td class="text-center font-weight-bold">{{ formatCurrency(tarif.prix) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
+
+        
     </AuthenticatedLayout>
 
     <div v-if="showCreateModal" class="modal d-block" tabindex="-1" role="dialog">
@@ -299,6 +399,78 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Ajouter prix de revient (batch) -->
+    <div v-if="showTarifModal" class="modal d-block" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ajouter des prix de revient — Contrat {{ contrat.numero }}</h5>
+                    <button type="button" class="close" @click="closeTarifModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="tarifFormError" class="alert alert-danger mb-3">
+                        <i class="fa fa-exclamation-circle mr-2"></i>{{ tarifFormError }}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0" style="background:#fff;">
+                            <thead style="background:#f0f4ff;">
+                                <tr>
+                                    <th style="width:35%;">Categorie</th>
+                                    <th style="width:28%;">Epaisseur</th>
+                                    <th style="width:25%;">Prix (CFA)</th>
+                                    <th class="text-center" style="width:12%;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(row, index) in tarifForm.rows" :key="row.localId">
+                                    <td>
+                                        <select v-model="row.categorie" class="form-control form-control-sm">
+                                            <option value="">Selectionner...</option>
+                                            <option value="mate">Mate</option>
+                                            <option value="semi_brillant">Semi-brillant</option>
+                                            <option value="brillant">Brillant</option>
+                                        </select>
+                                        <small v-if="tarifErrors[`tarifs.${index}.categorie`]" class="text-danger d-block mt-1">{{ tarifErrors[`tarifs.${index}.categorie`][0] }}</small>
+                                    </td>
+                                    <td>
+                                        <select v-model="row.epaisseur" class="form-control form-control-sm">
+                                            <option value="">Selectionner...</option>
+                                            <option v-for="opt in epaisseurOptions" :key="opt.id" :value="opt.value">{{ opt.label }}</option>
+                                        </select>
+                                        <small v-if="tarifErrors[`tarifs.${index}.epaisseur`]" class="text-danger d-block mt-1">{{ tarifErrors[`tarifs.${index}.epaisseur`][0] }}</small>
+                                    </td>
+                                    <td>
+                                        <input v-model="row.prix" type="number" min="0" step="1" class="form-control form-control-sm" placeholder="ex: 1500" />
+                                        <small v-if="tarifErrors[`tarifs.${index}.prix`]" class="text-danger d-block mt-1">{{ tarifErrors[`tarifs.${index}.prix`][0] }}</small>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <div class="d-flex justify-content-center" style="gap:6px;">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" title="Ajouter une ligne" @click="addTarifRow(index)">
+                                                <i class="fa fa-plus"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm" :class="tarifForm.rows.length === 1 ? 'btn-light text-muted' : 'btn-outline-danger'" :disabled="tarifForm.rows.length === 1" title="Supprimer la ligne" @click="removeTarifRow(index)">
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted"><i class="fa fa-info-circle mr-1"></i>Si un tarif existe deja pour la meme combinaison, il sera mis a jour.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success btn-sm" :disabled="submittingTarif" @click="submitTarifForm">
+                        <i class="fa fa-save mr-1"></i>{{ submittingTarif ? 'Enregistrement...' : 'Enregistrer' }}
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-sm" @click="closeTarifModal">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup>
@@ -317,6 +489,7 @@ const props = defineProps({
     epaisseurs: { type: Array, default: () => [] },
     suppliers: { type: Array, default: () => [] },
     userRole: { type: String, default: 'user' },
+    planche_tarifs: { type: Array, default: () => [] },
 });
 
 const isAdmin = computed(() => props.userRole === 'admin');
@@ -343,6 +516,58 @@ const detailEditFormError = ref('');
 const detailEditErrors = ref({});
 const selectedDetail = ref(null);
 const justUpdatedDetailId = ref(null);
+
+// Tabs
+const activeTab = ref('details');
+
+// Filters – details tab
+const filterDetailCouleur = ref('');
+const filterDetailCategorie = ref('');
+const filterDetailEpaisseur = ref('');
+const hasDetailFilters = computed(() => !!filterDetailCouleur.value || !!filterDetailCategorie.value || !!filterDetailEpaisseur.value);
+function resetDetailFilters() { filterDetailCouleur.value = ''; filterDetailCategorie.value = ''; filterDetailEpaisseur.value = ''; }
+
+// Filters – tarifs tab
+const filterTarifCategorie = ref('');
+const filterTarifEpaisseur = ref('');
+const hasTarifFilters = computed(() => !!filterTarifCategorie.value || !!filterTarifEpaisseur.value);
+function resetTarifFilters() { filterTarifCategorie.value = ''; filterTarifEpaisseur.value = ''; }
+
+// Tarifs
+const plancheTarifs = ref([...(props.planche_tarifs || [])]);
+const showTarifModal = ref(false);
+const submittingTarif = ref(false);
+const tarifFormError = ref('');
+const tarifErrors = ref({});
+const tarifForm = ref({ rows: [createTarifRow()] });
+
+function createTarifRow() {
+    return { localId: `${Date.now()}-${Math.random().toString(36).slice(2)}`, categorie: '', epaisseur: '', prix: '' };
+}
+function addTarifRow(index) { tarifForm.value.rows.splice(index + 1, 0, createTarifRow()); }
+function removeTarifRow(index) { if (tarifForm.value.rows.length > 1) tarifForm.value.rows.splice(index, 1); }
+function openTarifModal() { tarifForm.value = { rows: [createTarifRow()] }; tarifErrors.value = {}; tarifFormError.value = ''; showTarifModal.value = true; }
+function closeTarifModal() { showTarifModal.value = false; }
+function submitTarifForm() {
+    submittingTarif.value = true;
+    tarifErrors.value = {};
+    tarifFormError.value = '';
+    const tarifs = tarifForm.value.rows.map((r) => ({ categorie: r.categorie, epaisseur: r.epaisseur, prix: r.prix }));
+    axios.post(`/admin/contrats/${props.contrat.id}/planche-tarifs/batch`, { tarifs })
+        .then(() => {
+            closeTarifModal();
+            Inertia.visit(`/admin/contrats/${props.contrat.id}`, { preserveScroll: true, onSuccess: () => { activeTab.value = 'tarifs'; } });
+        })
+        .catch((error) => {
+            if (error.response?.status === 422) {
+                tarifErrors.value = error.response.data.errors || {};
+                tarifFormError.value = error.response.data.message || 'Veuillez corriger les erreurs du formulaire.';
+                return;
+            }
+            tarifFormError.value = error.response?.data?.message || 'Une erreur est survenue pendant l enregistrement.';
+        })
+        .finally(() => { submittingTarif.value = false; });
+}
 const epaisseurOptions = computed(() => props.epaisseurs.map((item) => {
     const value = extractEpaisseurValue(item);
     return value ? { id: item.id, label: item.intitule, value } : null;
@@ -374,6 +599,24 @@ const contractDetails = computed(() => (props.contrat.planches || [])
         if (keyA === keyB) return Number(a.epaisseur || 0) - Number(b.epaisseur || 0);
         return keyA.localeCompare(keyB);
     }));
+
+const filteredContractDetails = computed(() => {
+    let rows = contractDetails.value;
+    if (filterDetailCouleur.value) {
+        const q = filterDetailCouleur.value.trim().toLowerCase();
+        rows = rows.filter((d) => (d.code_couleur || '').toLowerCase().includes(q));
+    }
+    if (filterDetailCategorie.value) rows = rows.filter((d) => d.categorie === filterDetailCategorie.value);
+    if (filterDetailEpaisseur.value) rows = rows.filter((d) => String(d.epaisseur) === String(filterDetailEpaisseur.value));
+    return rows;
+});
+
+const filteredPlancheTarifs = computed(() => {
+    let rows = plancheTarifs.value;
+    if (filterTarifCategorie.value) rows = rows.filter((t) => t.categorie === filterTarifCategorie.value);
+    if (filterTarifEpaisseur.value) rows = rows.filter((t) => String(normalizeEpaisseurValue(t.epaisseur)) === String(filterTarifEpaisseur.value));
+    return rows;
+});
 
 function buildInitialCreateForm() {
     return {

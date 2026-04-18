@@ -24,6 +24,7 @@ class PlancheBonLivraisonController extends Controller
     {
         return Inertia::render('PlancheBonsLivraison/Index', [
             'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
+            'clients'   => Client::query()->select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 
@@ -97,7 +98,38 @@ class PlancheBonLivraisonController extends Controller
             $query->whereDate('date_livraison', $request->date('date_livraison'));
         }
 
-        $bons = $query->paginate(20);
+        if ($request->filled('date_from')) {
+            $query->whereDate('date_livraison', '>=', $request->date('date_from'));
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('date_livraison', '<=', $request->date('date_to'));
+        }
+
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->integer('client_id'));
+        }
+
+        if ($request->filled('supplier_id')) {
+            $query->whereHas('lignes.plancheDetail.planche.contrat', function ($q) use ($request) {
+                $q->where('supplier_id', $request->integer('supplier_id'));
+            });
+        }
+
+        if ($request->filled('numero_contrat')) {
+            $query->whereHas('lignes.plancheDetail.planche.contrat', function ($q) use ($request) {
+                $q->where('numero', 'like', '%' . trim($request->string('numero_contrat')->toString()) . '%');
+            });
+        }
+
+        if ($request->filled('code_couleur')) {
+            $query->whereHas('lignes.plancheDetail.couleur', function ($q) use ($request) {
+                $q->where('code', 'like', '%' . trim($request->string('code_couleur')->toString()) . '%');
+            });
+        }
+
+        $perPage = min((int) ($request->input('per_page', 25)), 200);
+        $bons = $query->paginate($perPage)->withQueryString();
         $bons->getCollection()->transform(fn (PlancheBonLivraison $bon) => $this->decorateBonLivraison($bon));
 
         return response()->json($bons);

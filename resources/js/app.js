@@ -4,6 +4,14 @@ import { ZiggyVue } from 'ziggy-js';
 import {Ziggy} from './ziggy';
 import '../css/app.css';
 
+// Fermer les modals en cliquant sur le backdrop
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal') && e.target.classList.contains('d-block')) {
+        const closeBtn = e.target.querySelector('.modal-header .close');
+        if (closeBtn) closeBtn.click();
+    }
+});
+
 createInertiaApp({
     resolve: name => {
         const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
