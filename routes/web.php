@@ -92,12 +92,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::post('/{client}/update-amount/{clientId}', [ClientController::class, 'updateAmountClient'])->name('clients.update-amount');
             });
 
+        }); // fin middleware role:admin
+
+        Route::middleware('role:admin,comptable')->group(function () {
+            Route::get('/clients/liste-clients', [ClientController::class, 'getClients'])->name('clients.api');
+
             Route::prefix('/configuration')->group(function () {
                 Route::get('/', [ConfigurationController::class, 'index'])->name('configuration.index');
                 Route::get('/epaisseurs', [EpaisseurController::class, 'index'])->name('configuration.epaisseurs.index');
                 Route::post('/epaisseurs', [EpaisseurController::class, 'store'])->name('configuration.epaisseurs.store');
                 Route::put('/epaisseurs/{epaisseur}', [EpaisseurController::class, 'update'])->name('configuration.epaisseurs.update');
                 Route::delete('/epaisseurs/{epaisseur}', [EpaisseurController::class, 'destroy'])->name('configuration.epaisseurs.destroy');
+                Route::get('/planche-couleurs', [PlancheCouleurController::class, 'index'])->name('configuration.planche-couleurs.index');
                 Route::post('/planche-couleurs', [PlancheCouleurController::class, 'store'])->name('configuration.planche-couleurs.store');
                 Route::post('/planche-couleurs/{plancheCouleur}', [PlancheCouleurController::class, 'update'])->name('configuration.planche-couleurs.update');
                 Route::delete('/planche-couleurs/{plancheCouleur}', [PlancheCouleurController::class, 'destroy'])->name('configuration.planche-couleurs.destroy');
@@ -106,12 +112,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::put('/suppliers/{supplier}', [SupplierConfigurationController::class, 'update'])->name('configuration.suppliers.update');
                 Route::delete('/suppliers/{supplier}', [SupplierConfigurationController::class, 'destroy'])->name('configuration.suppliers.destroy');
             });
-
-        }); // fin middleware role:admin
-
-        Route::middleware('role:admin,comptable')->group(function () {
-            Route::get('/clients/liste-clients', [ClientController::class, 'getClients'])->name('clients.api');
-            Route::get('/configuration/planche-couleurs', [PlancheCouleurController::class, 'index'])->name('configuration.planche-couleurs.index');
         });
 
             Route::prefix('/configuration')->middleware('role:admin')->group(function () {
