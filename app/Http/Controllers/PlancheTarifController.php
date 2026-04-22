@@ -18,7 +18,6 @@ class PlancheTarifController extends Controller
     {
         $tarifs = PlancheTarif::query()
             ->with('contrat:id,numero')
-            ->orderBy('categorie')
             ->orderBy('epaisseur')
             ->get();
 
@@ -40,7 +39,6 @@ class PlancheTarifController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'categorie'  => ['required', 'in:mate,semi_brillant,brillant'],
             'epaisseur'  => ['required', 'numeric', 'min:0.01'],
             'prix'       => ['required', 'numeric', 'min:0'],
             'contrat_id' => ['required', 'integer', 'exists:contrats,id'],
@@ -53,7 +51,7 @@ class PlancheTarifController extends Controller
         } catch (QueryException $e) {
             if ($e->getCode() === '23000') {
                 return response()->json([
-                    'message' => 'Un tarif existe déjà pour cette combinaison catégorie/épaisseur/contrat.',
+                    'message' => 'Un tarif existe déjà pour cette combinaison épaisseur/contrat.',
                     'errors' => ['epaisseur' => ['Ce tarif existe déjà pour cette combinaison.']],
                 ], 422);
             }
@@ -69,7 +67,6 @@ class PlancheTarifController extends Controller
     public function update(Request $request, PlancheTarif $plancheTarif): JsonResponse
     {
         $validated = $request->validate([
-            'categorie'    => ['required', 'in:mate,semi_brillant,brillant'],
             'epaisseur'    => ['required', 'numeric', 'min:0.01'],
             'prix'         => ['required', 'numeric', 'min:0'],
             'contrat_id'   => ['required', 'integer', 'exists:contrats,id'],
@@ -89,7 +86,7 @@ class PlancheTarifController extends Controller
         } catch (QueryException $e) {
             if ($e->getCode() === '23000') {
                 return response()->json([
-                    'message' => 'Un tarif existe déjà pour cette combinaison catégorie/épaisseur/contrat.',
+                    'message' => 'Un tarif existe déjà pour cette combinaison épaisseur/contrat.',
                     'errors' => ['epaisseur' => ['Ce tarif existe déjà pour cette combinaison.']],
                 ], 422);
             }
@@ -111,8 +108,7 @@ class PlancheTarifController extends Controller
         $query = PlancheBonLivraisonLigne::query()
             ->whereNull('prix_de_revient')
             ->whereHas('plancheDetail', function ($q) use ($tarif) {
-                $q->where('categorie', $tarif->categorie)
-                  ->where('epaisseur', $tarif->epaisseur);
+                $q->where('epaisseur', $tarif->epaisseur);
             });
 
         if ($tarif->contrat_id) {
@@ -130,8 +126,7 @@ class PlancheTarifController extends Controller
     {
         $query = PlancheBonLivraisonLigne::query()
             ->whereHas('plancheDetail', function ($q) use ($tarif) {
-                $q->where('categorie', $tarif->categorie)
-                  ->where('epaisseur', $tarif->epaisseur);
+                $q->where('epaisseur', $tarif->epaisseur);
             });
 
         if ($tarif->contrat_id) {
@@ -155,8 +150,7 @@ class PlancheTarifController extends Controller
     {
         $lignesQuery = PlancheBonLivraisonLigne::query()
             ->whereHas('plancheDetail', function ($q) use ($plancheTarif) {
-                $q->where('categorie', $plancheTarif->categorie)
-                  ->where('epaisseur', $plancheTarif->epaisseur);
+                $q->where('epaisseur', $plancheTarif->epaisseur);
             });
 
         if ($plancheTarif->contrat_id) {
@@ -167,7 +161,7 @@ class PlancheTarifController extends Controller
             ->with([
                 'bonLivraison:id,numero_bl,date_livraison,client_id',
                 'bonLivraison.client:id,name',
-                'plancheDetail:id,categorie,epaisseur',
+                'plancheDetail:id,epaisseur',
                 'plancheDetail.couleur:id,code',
                 'plancheDetail.planche:id,contrat_id',
                 'plancheDetail.planche.contrat:id,numero',

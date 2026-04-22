@@ -5,7 +5,7 @@
         </div>
 
         <div class="row">
-            <div class="col-lg-4 mb-4">
+            <div v-if="canEdit" class="col-lg-4 mb-4">
                 <div class="border rounded p-3 h-100" style="background:#fbfcfe;">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
@@ -63,7 +63,7 @@
                 </div>
             </div>
 
-            <div class="col-lg-8">
+            <div :class="canEdit ? 'col-lg-8' : 'col-lg-12'">
                 <div class="border rounded p-3" style="background:#fff;">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div>
@@ -78,7 +78,7 @@
                                 <tr>
                                     <th style="width:90px;">Apercu</th>
                                     <th>Code</th>
-                                    <th class="text-center" style="width:180px;">Actions</th>
+                                    <th v-if="canEdit" class="text-center" style="width:180px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -88,7 +88,7 @@
                                     </td>
                                 </tr>
                                 <tr v-for="couleur in items" :key="couleur.id">
-                                    <template v-if="editingId === couleur.id">
+                                    <template v-if="canEdit && editingId === couleur.id">
                                         <td class="align-middle text-center">
                                             <img
                                                 v-if="editPreviewUrl"
@@ -149,7 +149,7 @@
                                                 Utilisee dans {{ couleur.usage_count }} ligne(s) de planche
                                             </div>
                                         </td>
-                                        <td class="text-center align-middle">
+                                        <td v-if="canEdit" class="text-center align-middle">
                                             <button type="button" class="btn btn-sm btn-outline-primary mr-1" @click="startEdit(couleur)">
                                                 <i class="fa fa-pencil"></i>
                                             </button>
@@ -182,6 +182,10 @@ const props = defineProps({
     initialItems: {
         type: Array,
         default: () => [],
+    },
+    canEdit: {
+        type: Boolean,
+        default: true,
     },
 });
 

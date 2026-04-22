@@ -25,6 +25,8 @@
             
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-info"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_prevue || 0 }}</h3><span>Feuilles prevues</span></div></div></div></div>
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-success"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_disponible || 0 }}</h3><span>Disponibles</span></div></div></div></div>
+            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-warning"><div class="body"><div class="p-15 text-light"><h3>{{ formatCurrency(totalPrixVentes) }}</h3><span>Prix total des ventes</span></div></div></div></div>
+            <div v-if="isAdmin" class="col-lg-3 col-md-6 col-sm-12"><div class="card" :class="totalBenefice >= 0 ? 'bg-primary' : 'bg-danger'"><div class="body"><div class="p-15 text-light"><h3>{{ formatCurrency(totalBenefice) }}</h3><span>Bénéfice total</span></div></div></div></div>
         </div>
 
         <div class="row clearfix">
@@ -53,21 +55,29 @@
         </div>
 
         <!-- Nav Tabs -->
-        <ul class="nav nav-tabs mb-0" style="border-bottom:0;">
-            <li class="nav-item">
-                <button class="nav-link" :class="{ active: activeTab === 'details' }" @click="activeTab = 'details'">
-                    <i class="fa fa-list mr-1"></i> Detail du contrat
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" :class="{ active: activeTab === 'tarifs' }" @click="activeTab = 'tarifs'">
-                    <i class="fa fa-tag mr-1"></i> Prix de revient
-                </button>
-            </li>
-        </ul>
+        <div class="ct-tab-bar">
+            <button
+                class="ct-tab"
+                :class="{ 'ct-tab--active': activeTab === 'details' }"
+                @click="activeTab = 'details'"
+            >
+                <i class="fa fa-list"></i>
+                <span class="ct-tab__label">Detail du contrat</span>
+                <span class="ct-tab__count">{{ contractDetails.length }}</span>
+            </button>
+            <button
+                class="ct-tab"
+                :class="{ 'ct-tab--active': activeTab === 'tarifs' }"
+                @click="activeTab = 'tarifs'"
+            >
+                <i class="fa fa-tag"></i>
+                <span class="ct-tab__label">Prix de revient</span>
+                <span class="ct-tab__count">{{ plancheTarifs.length }}</span>
+            </button>
+        </div>
 
         <!-- Tab: Details du contrat -->
-        <div v-show="activeTab === 'details'" class="card" style="border-top-left-radius:0;">
+        <div v-show="activeTab === 'details'" class="card ct-tab-panel">
             <div class="header">
                 <div class="d-flex align-items-center justify-content-between flex-wrap mb-2" style="gap:8px;">
                     <h2 class="mb-0">Details du contrat</h2>
@@ -80,21 +90,20 @@
                         <input v-model="filterDetailCouleur" type="text" class="form-control form-control-sm" placeholder="Filtrer par code couleur..." />
                     </div>
                     <div class="col-md-3 col-sm-6 mb-2">
-                        <select v-model="filterDetailCategorie" class="form-control form-control-sm">
-                            <option value="">Toutes les categories</option>
-                            <option value="mate">Mate</option>
-                            <option value="semi_brillant">Semi-brillant</option>
-                            <option value="brillant">Brillant</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3 col-sm-6 mb-2">
                         <select v-model="filterDetailEpaisseur" class="form-control form-control-sm">
                             <option value="">Toutes les epaisseurs</option>
                             <option v-for="opt in epaisseurOptions" :key="opt.id" :value="opt.value">{{ opt.label }}</option>
                         </select>
                     </div>
-                    <div class="col-md-2 col-sm-6 mb-2 d-flex align-items-center">
-                        <small class="text-muted">{{ filteredContractDetails.length }} / {{ contractDetails.length }} ligne(s)</small>
+                    <div class="col-md-2 col-sm-6 mb-2">
+                        <select v-model="filterDetailDisponibilite" class="form-control form-control-sm">
+                            <option value="">Toutes</option>
+                            <option value="disponible">Disponible</option>
+                            <option value="epuise">Épuisé</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 col-sm-6 mb-2 d-flex align-items-center">
+                        <small class="text-muted">{{ filteredContractDetails.length }} / {{ contractDetails.length }}</small>
                     </div>
                 </div>
             </div>
@@ -102,12 +111,12 @@
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Code couleur</th><th>Categorie</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th v-if="isAdmin" class="text-center">Prix de revient</th><th class="text-center">Total vendu</th><th v-if="isAdmin" class="text-center">Bénéfice total</th><th>Actions</th>
+                            <th>Code couleur</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th v-if="isAdmin" class="text-center">Prix de revient</th><th class="text-center">Total vendu</th><th v-if="isAdmin" class="text-center">Bénéfice total</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="!filteredContractDetails.length"><td :colspan="isAdmin ? 10 : 8" class="text-center py-4 text-muted">{{ contractDetails.length ? 'Aucun resultat pour ces filtres.' : 'Aucun detail pour ce contrat.' }}</td></tr>
-                        <tr v-for="detail in filteredContractDetails" :key="detail.id">
+                        <tr v-for="detail in filteredContractDetails" :key="detail.id" :class="{ 'table-danger': detail.quantite_disponible === 0 }">
                             
                             <td>
                                 <div class="d-flex align-items-center" style="gap:8px;">
@@ -118,7 +127,6 @@
                                     <span class="badge badge-info">{{ detail.code_couleur || '-' }}</span>
                                 </div>
                             </td>
-                            <td><span class="badge" :class="categorieBadgeClass(detail.categorie)">{{ categorieLabel(detail.categorie) }}</span></td>
                             <td class="text-center">{{ formatDecimal(detail.epaisseur) }}</td>
                             <td class="text-center">{{ detail.quantite_prevue || 0 }}</td>
                             <td class="text-center">{{ detail.total_quantite_livree || 0 }}</td>
@@ -149,7 +157,7 @@
         </div>
 
         <!-- Tab: Prix de revient -->
-        <div v-show="activeTab === 'tarifs'" class="card" style="border-top-left-radius:0;">
+        <div v-show="activeTab === 'tarifs'" class="card ct-tab-panel">
             <div class="header">
                 <div class="d-flex align-items-center justify-content-between flex-wrap mb-2" style="gap:8px;">
                     <h2 class="mb-0">Prix de revient du contrat</h2>
@@ -163,14 +171,6 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-4 col-sm-6 mb-2">
-                        <select v-model="filterTarifCategorie" class="form-control form-control-sm">
-                            <option value="">Toutes les categories</option>
-                            <option value="mate">Mate</option>
-                            <option value="semi_brillant">Semi-brillant</option>
-                            <option value="brillant">Brillant</option>
-                        </select>
-                    </div>
                     <div class="col-md-4 col-sm-6 mb-2">
                         <select v-model="filterTarifEpaisseur" class="form-control form-control-sm">
                             <option value="">Toutes les epaisseurs</option>
@@ -186,17 +186,15 @@
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Categorie</th>
                             <th class="text-center">Epaisseur</th>
                             <th class="text-center">Prix de revient</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-if="!filteredPlancheTarifs.length">
-                            <td colspan="3" class="text-center py-4 text-muted">{{ plancheTarifs.length ? 'Aucun resultat pour ces filtres.' : 'Aucun prix de revient defini pour ce contrat.' }}</td>
+                            <td colspan="2" class="text-center py-4 text-muted">{{ plancheTarifs.length ? 'Aucun resultat pour ces filtres.' : 'Aucun prix de revient defini pour ce contrat.' }}</td>
                         </tr>
                         <tr v-for="tarif in filteredPlancheTarifs" :key="tarif.id">
-                            <td><span class="badge" :class="categorieBadgeClass(tarif.categorie)">{{ categorieLabel(tarif.categorie) }}</span></td>
                             <td class="text-center">{{ formatDecimal(tarif.epaisseur) }}</td>
                             <td class="text-center font-weight-bold">{{ formatCurrency(tarif.prix) }}</td>
                         </tr>
@@ -239,7 +237,7 @@
                                 <table class="table table-sm table-bordered table-hover mb-0" style="background:#fff;">
                                     <thead style="background:#f0f4ff;">
                                         <tr>
-                                            <th style="width:28%;">Code couleur</th><th style="width:15%;">Categorie</th><th style="width:13%;">Epaisseur</th><th style="width:17%;">Quantite prevue</th><th class="text-center" style="width:17%;">Actions</th>
+                                            <th style="width:35%;">Code couleur</th><th style="width:18%;">Epaisseur</th><th style="width:20%;">Quantite prevue</th><th class="text-center" style="width:17%;">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -259,15 +257,6 @@
                                                     </div>
                                                 </div>
                                                 <small v-if="createErrors[`rows.${index}.code_couleur`]" class="text-danger d-block mt-1">{{ createErrors[`rows.${index}.code_couleur`][0] }}</small>
-                                            </td>
-                                            <td>
-                                                <select v-model="row.categorie" class="form-control form-control-sm">
-                                                    <option value="">Selectionner...</option>
-                                                    <option value="mate">Mate</option>
-                                                    <option value="semi_brillant">Semi-brillant</option>
-                                                    <option value="brillant">Brillant</option>
-                                                </select>
-                                                <small v-if="createErrors[`rows.${index}.categorie`]" class="text-danger d-block mt-1">{{ createErrors[`rows.${index}.categorie`][0] }}</small>
                                             </td>
                                             <td>
                                                 <select v-model="row.epaisseur" class="form-control form-control-sm">
@@ -367,16 +356,6 @@
                         />
                     </div>
                     <div class="form-group">
-                        <label>Categorie *</label>
-                        <select v-model="detailEditForm.categorie" class="form-control">
-                            <option value="">Selectionner...</option>
-                            <option value="mate">Mate</option>
-                            <option value="semi_brillant">Semi-brillant</option>
-                            <option value="brillant">Brillant</option>
-                        </select>
-                        <small v-if="detailEditErrors.categorie" class="text-danger d-block mt-1">{{ detailEditErrors.categorie[0] }}</small>
-                    </div>
-                    <div class="form-group">
                         <label>Epaisseur *</label>
                         <select v-model="detailEditForm.epaisseur" class="form-control">
                             <option value="">Selectionner...</option>
@@ -416,23 +395,13 @@
                         <table class="table table-sm table-bordered mb-0" style="background:#fff;">
                             <thead style="background:#f0f4ff;">
                                 <tr>
-                                    <th style="width:35%;">Categorie</th>
-                                    <th style="width:28%;">Epaisseur</th>
-                                    <th style="width:25%;">Prix (CFA)</th>
+                                    <th style="width:48%;">Epaisseur</th>
+                                    <th style="width:40%;">Prix (CFA)</th>
                                     <th class="text-center" style="width:12%;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="(row, index) in tarifForm.rows" :key="row.localId">
-                                    <td>
-                                        <select v-model="row.categorie" class="form-control form-control-sm">
-                                            <option value="">Selectionner...</option>
-                                            <option value="mate">Mate</option>
-                                            <option value="semi_brillant">Semi-brillant</option>
-                                            <option value="brillant">Brillant</option>
-                                        </select>
-                                        <small v-if="tarifErrors[`tarifs.${index}.categorie`]" class="text-danger d-block mt-1">{{ tarifErrors[`tarifs.${index}.categorie`][0] }}</small>
-                                    </td>
                                     <td>
                                         <select v-model="row.epaisseur" class="form-control form-control-sm">
                                             <option value="">Selectionner...</option>
@@ -522,16 +491,15 @@ const activeTab = ref('details');
 
 // Filters – details tab
 const filterDetailCouleur = ref('');
-const filterDetailCategorie = ref('');
 const filterDetailEpaisseur = ref('');
-const hasDetailFilters = computed(() => !!filterDetailCouleur.value || !!filterDetailCategorie.value || !!filterDetailEpaisseur.value);
-function resetDetailFilters() { filterDetailCouleur.value = ''; filterDetailCategorie.value = ''; filterDetailEpaisseur.value = ''; }
+const filterDetailDisponibilite = ref('');
+const hasDetailFilters = computed(() => !!filterDetailCouleur.value || !!filterDetailEpaisseur.value || !!filterDetailDisponibilite.value);
+function resetDetailFilters() { filterDetailCouleur.value = ''; filterDetailEpaisseur.value = ''; filterDetailDisponibilite.value = ''; }
 
 // Filters – tarifs tab
-const filterTarifCategorie = ref('');
 const filterTarifEpaisseur = ref('');
-const hasTarifFilters = computed(() => !!filterTarifCategorie.value || !!filterTarifEpaisseur.value);
-function resetTarifFilters() { filterTarifCategorie.value = ''; filterTarifEpaisseur.value = ''; }
+const hasTarifFilters = computed(() => !!filterTarifEpaisseur.value);
+function resetTarifFilters() { filterTarifEpaisseur.value = ''; }
 
 // Tarifs
 const plancheTarifs = ref([...(props.planche_tarifs || [])]);
@@ -542,7 +510,7 @@ const tarifErrors = ref({});
 const tarifForm = ref({ rows: [createTarifRow()] });
 
 function createTarifRow() {
-    return { localId: `${Date.now()}-${Math.random().toString(36).slice(2)}`, categorie: '', epaisseur: '', prix: '' };
+    return { localId: `${Date.now()}-${Math.random().toString(36).slice(2)}`, epaisseur: '', prix: '' };
 }
 function addTarifRow(index) { tarifForm.value.rows.splice(index + 1, 0, createTarifRow()); }
 function removeTarifRow(index) { if (tarifForm.value.rows.length > 1) tarifForm.value.rows.splice(index, 1); }
@@ -552,7 +520,7 @@ function submitTarifForm() {
     submittingTarif.value = true;
     tarifErrors.value = {};
     tarifFormError.value = '';
-    const tarifs = tarifForm.value.rows.map((r) => ({ categorie: r.categorie, epaisseur: r.epaisseur, prix: r.prix }));
+    const tarifs = tarifForm.value.rows.map((r) => ({ epaisseur: r.epaisseur, prix: r.prix }));
     axios.post(`/admin/contrats/${props.contrat.id}/planche-tarifs/batch`, { tarifs })
         .then(() => {
             closeTarifModal();
@@ -583,7 +551,6 @@ const contractDetails = computed(() => (props.contrat.planches || [])
         code_couleur_from_selection: planche.code_couleur || detail.couleur?.code || '',
         existing_image_url: detail.couleur?.image_url || '',
         image_url: detail.couleur?.image_url || '',
-        categorie: detail.categorie,
         epaisseur: normalizeEpaisseurValue(detail.epaisseur),
         quantite_prevue: detail.quantite_prevue,
         total_quantite_livree: detail.total_quantite_livree || 0,
@@ -594,8 +561,8 @@ const contractDetails = computed(() => (props.contrat.planches || [])
         profit_total: detail.profit_total ?? null,
     })))
     .sort((a, b) => {
-        const keyA = `${a.code_couleur || ''}|${a.categorie || ''}`;
-        const keyB = `${b.code_couleur || ''}|${b.categorie || ''}`;
+        const keyA = a.code_couleur || '';
+        const keyB = b.code_couleur || '';
         if (keyA === keyB) return Number(a.epaisseur || 0) - Number(b.epaisseur || 0);
         return keyA.localeCompare(keyB);
     }));
@@ -606,14 +573,17 @@ const filteredContractDetails = computed(() => {
         const q = filterDetailCouleur.value.trim().toLowerCase();
         rows = rows.filter((d) => (d.code_couleur || '').toLowerCase().includes(q));
     }
-    if (filterDetailCategorie.value) rows = rows.filter((d) => d.categorie === filterDetailCategorie.value);
     if (filterDetailEpaisseur.value) rows = rows.filter((d) => String(d.epaisseur) === String(filterDetailEpaisseur.value));
+    if (filterDetailDisponibilite.value === 'disponible') rows = rows.filter((d) => d.quantite_disponible > 0);
+    if (filterDetailDisponibilite.value === 'epuise') rows = rows.filter((d) => d.quantite_disponible === 0);
     return rows;
 });
 
+const totalPrixVentes = computed(() => contractDetails.value.reduce((sum, d) => sum + Number(d.total_prix_total || 0), 0));
+const totalBenefice = computed(() => contractDetails.value.reduce((sum, d) => sum + Number(d.profit_total || 0), 0));
+
 const filteredPlancheTarifs = computed(() => {
     let rows = plancheTarifs.value;
-    if (filterTarifCategorie.value) rows = rows.filter((t) => t.categorie === filterTarifCategorie.value);
     if (filterTarifEpaisseur.value) rows = rows.filter((t) => String(normalizeEpaisseurValue(t.epaisseur)) === String(filterTarifEpaisseur.value));
     return rows;
 });
@@ -638,7 +608,6 @@ function buildInitialDetailEditForm() {
         code_couleur: '',
         code_couleur_from_selection: '',
         existing_image_url: '',
-        categorie: '',
         epaisseur: '',
         quantite_prevue: '',
     };
@@ -650,7 +619,6 @@ function createRow(defaults = {}) {
         code_couleur: defaults.code_couleur || '',
         code_couleur_from_selection: defaults.code_couleur_from_selection || '',
         existing_image_url: defaults.existing_image_url || '',
-        categorie: defaults.categorie || '',
         epaisseur: normalizeEpaisseurValue(defaults.epaisseur),
         quantite_prevue: defaults.quantite_prevue || '',
     };
@@ -718,12 +686,12 @@ function buildPayload() {
     const keyToGroupIndex = new Map();
     const rowMap = [];
     createForm.value.rows.forEach((row) => {
-        const key = `${normalizeCode(row.code_couleur)}|${row.categorie || ''}`;
+        const key = normalizeCode(row.code_couleur);
         let groupIndex = keyToGroupIndex.get(key);
         if (groupIndex === undefined) {
             groupIndex = groupes.length;
             keyToGroupIndex.set(key, groupIndex);
-            groupes.push({ code_couleur: row.code_couleur, categorie: row.categorie, epaisseurs: [] });
+            groupes.push({ code_couleur: row.code_couleur, epaisseurs: [] });
         }
         const epaisseurIndex = groupes[groupIndex].epaisseurs.length;
         groupes[groupIndex].epaisseurs.push({ epaisseur: row.epaisseur, quantite_prevue: row.quantite_prevue });
@@ -740,7 +708,7 @@ function mapServerErrors(serverErrors, rowMap) {
     });
     Object.entries(serverErrors || {}).forEach(([path, messages]) => {
         if (path === 'groupes') return void (mapped[path] = messages);
-        let match = path.match(/^groupes\.(\d+)\.(code_couleur|categorie)$/);
+        let match = path.match(/^groupes\.(\d+)\.(code_couleur)$/);
         if (match) {
             const groupIndex = Number(match[1]);
             const field = match[2];
@@ -813,7 +781,6 @@ function openDetailEditModal(detail) {
         code_couleur: detail.code_couleur || '',
         code_couleur_from_selection: detail.code_couleur || '',
         existing_image_url: detail.image_url || '',
-        categorie: detail.categorie || '',
         epaisseur: normalizeEpaisseurValue(detail.epaisseur),
         quantite_prevue: detail.quantite_prevue || '',
     };
@@ -834,7 +801,6 @@ function submitDetailEditForm() {
 
     axios.put(`/admin/planches/${selectedDetail.value.planche_id}/lignes/${selectedDetail.value.id}`, {
         code_couleur: detailEditForm.value.code_couleur,
-        categorie: detailEditForm.value.categorie,
         epaisseur: detailEditForm.value.epaisseur,
         quantite_prevue: detailEditForm.value.quantite_prevue,
     })
@@ -877,8 +843,6 @@ function deleteDetail(detail) {
             });
     });
 }
-function categorieLabel(cat) { return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-'; }
-function categorieBadgeClass(cat) { return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light'; }
 function formatDecimal(value) { return value === null || value === undefined || value === '' ? '-' : Number(value).toFixed(2); }
 function formatCurrency(value) { const num = Math.round(Number(value || 0)); return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' CFA'; }
 </script>
@@ -889,13 +853,86 @@ function formatCurrency(value) { const num = Math.round(Number(value || 0)); ret
 }
 
 @keyframes highlightFade {
-    0% {
-        background-color: #d4edda;
-        color: #155724;
-    }
-    100% {
-        background-color: transparent;
-        color: inherit;
-    }
+    0% { background-color: #d4edda; color: #155724; }
+    100% { background-color: transparent; color: inherit; }
+}
+
+/* ── Segmented Tab Bar ─────────────────────────────────────── */
+.ct-tab-bar {
+    display: flex;
+    align-items: center;
+    background: #f1f5f9;
+    border-radius: 12px;
+    padding: 5px;
+    gap: 4px;
+    margin-bottom: 0;
+    width: fit-content;
+}
+
+.ct-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 20px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.ct-tab:hover:not(.ct-tab--active) {
+    background: rgba(255, 255, 255, 0.7);
+    color: #374151;
+}
+
+.ct-tab--active {
+    background: #fff;
+    color: #1e40af;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.ct-tab .fa {
+    font-size: 0.85rem;
+    opacity: 0.75;
+}
+
+.ct-tab--active .fa {
+    opacity: 1;
+    color: #2563eb;
+}
+
+.ct-tab__label {
+    letter-spacing: 0.01em;
+}
+
+.ct-tab__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e2e8f0;
+    color: #475569;
+    padding: 0 7px;
+    height: 18px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    min-width: 22px;
+    transition: all 0.2s ease;
+}
+
+.ct-tab--active .ct-tab__count {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.ct-tab-panel {
+    border-radius: 12px !important;
+    margin-top: 8px;
 }
 </style>

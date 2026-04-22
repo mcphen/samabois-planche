@@ -43,9 +43,8 @@ class ContratController extends Controller
             'userRole' => auth()->user()->role,
             'planche_tarifs' => PlancheTarif::query()
                 ->where('contrat_id', $contrat->id)
-                ->orderBy('categorie')
                 ->orderBy('epaisseur')
-                ->get(['id', 'contrat_id', 'categorie', 'epaisseur', 'prix']),
+                ->get(['id', 'contrat_id', 'epaisseur', 'prix']),
         ]);
     }
 
@@ -53,7 +52,6 @@ class ContratController extends Controller
     {
         $request->validate([
             'tarifs'             => ['required', 'array', 'min:1'],
-            'tarifs.*.categorie' => ['required', 'in:mate,semi_brillant,brillant'],
             'tarifs.*.epaisseur' => ['required', 'numeric', 'min:0.01'],
             'tarifs.*.prix'      => ['required', 'numeric', 'min:0'],
         ]);
@@ -62,7 +60,6 @@ class ContratController extends Controller
             PlancheTarif::updateOrCreate(
                 [
                     'contrat_id' => $contrat->id,
-                    'categorie'  => $item['categorie'],
                     'epaisseur'  => $item['epaisseur'],
                 ],
                 ['prix' => $item['prix']]
@@ -156,7 +153,7 @@ class ContratController extends Controller
         $history = PlancheBenefitHistory::query()
             ->with([
                 'user:id,name',
-                'plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur',
+                'plancheDetail:id,planche_id,planche_couleur_id,epaisseur',
                 'plancheDetail.couleur:id,code',
                 'plancheBonLivraison:id,numero_bl',
             ])
@@ -174,7 +171,6 @@ class ContratController extends Controller
                     'created_at' => optional($entry->created_at)->format('Y-m-d H:i'),
                     'planche_detail' => $entry->plancheDetail ? [
                         'id' => $entry->plancheDetail->id,
-                        'categorie' => $entry->plancheDetail->categorie,
                         'epaisseur' => $entry->plancheDetail->epaisseur,
                         'code_couleur' => $entry->plancheDetail->couleur?->code,
                     ] : null,
@@ -201,7 +197,7 @@ class ContratController extends Controller
                     ->with([
                         'details' => function ($detailQuery) {
                             $detailQuery
-                                ->select('id', 'planche_id', 'planche_couleur_id', 'categorie', 'epaisseur', 'quantite_prevue')
+                                ->select('id', 'planche_id', 'planche_couleur_id', 'epaisseur', 'quantite_prevue')
                                 ->with(['couleur:id,code,image_path'])
                                 ->withSum('bonLivraisonLignes as total_quantite_livree', 'quantite_livree')
                                 ->withSum('bonLivraisonLignes as total_prix_total', 'prix_total')
@@ -217,7 +213,7 @@ class ContratController extends Controller
     {
         $planches = $contrat->planches
             ->map(fn (Planche $planche) => $this->decoratePlanche($planche))
-            ->sortBy(fn (Planche $planche) => ($planche->code_couleur ?? '') . '|' . ($planche->categorie ?? ''))
+            ->sortBy(fn (Planche $planche) => $planche->code_couleur ?? '')
             ->values();
 
         $contrat->setRelation('planches', $planches);
@@ -239,12 +235,10 @@ class ContratController extends Controller
 
         $firstDetail = $details->first();
         $couleur = $firstDetail?->couleur;
-        $categorie = $firstDetail?->categorie;
 
         $planche->setRelation('details', $details);
         $planche->setRelation('couleur', $couleur);
         $planche->setAttribute('code_couleur', $this->extractCouleurCode($couleur));
-        $planche->setAttribute('categorie', $categorie);
         $planche->setAttribute('total_quantite_prevue', $details->sum(fn (PlancheDetail $detail) => (int) $detail->quantite_prevue));
         $planche->setAttribute('total_quantite_livree', $details->sum(fn (PlancheDetail $detail) => (int) ($detail->total_quantite_livree ?? 0)));
         $planche->setAttribute('total_quantite_disponible', $details->sum(fn (PlancheDetail $detail) => (int) ($detail->quantite_disponible ?? 0)));
@@ -256,7 +250,7 @@ class ContratController extends Controller
     {
         $quantiteLivree = (int) ($detail->total_quantite_livree ?? 0);
         $totalPrixTotal = (float) ($detail->total_prix_total ?? 0);
-        $prixRevient    = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur, $contratId);
+        $prixRevient    = PlancheTarif::getPrixFor($detail->epaisseur, $contratId);
 
         $detail->setAttribute('total_quantite_livree', $quantiteLivree);
         $detail->setAttribute('quantite_disponible', max((int) $detail->quantite_prevue - $quantiteLivree, 0));

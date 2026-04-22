@@ -20,12 +20,41 @@
                         <input v-model="filters.numero_bl" type="text" class="form-control" placeholder="Rechercher..." @keyup.enter="fetchBons()" />
                     </div>
 
-                    <div class="col-md-3 mb-2">
+                    <div class="col-md-3 mb-2" style="position:relative;" data-client-autocomplete>
                         <label class="small font-weight-bold">Client</label>
-                        <select v-model="filters.client_id" class="form-control">
-                            <option value="">Tous les clients</option>
-                            <option v-for="client in clients" :key="client.id" :value="client.id">{{ client.name }}</option>
-                        </select>
+                        <div style="position:relative;">
+                            <input
+                                v-model="clientSearch"
+                                type="text"
+                                class="form-control"
+                                placeholder="Rechercher un client..."
+                                autocomplete="off"
+                                @focus="showClientDropdown = true"
+                                @input="showClientDropdown = true; filters.client_id = ''"
+                            />
+                            <button
+                                v-if="clientSearch"
+                                type="button"
+                                class="btn btn-sm"
+                                style="position:absolute;right:4px;top:50%;transform:translateY(-50%);padding:0 6px;border:none;background:transparent;color:#999;"
+                                @click="clearClientFilter"
+                            >&times;</button>
+                        </div>
+                        <ul
+                            v-if="showClientDropdown && filteredClientsList.length"
+                            class="list-group shadow"
+                            style="position:absolute;z-index:1050;width:100%;max-height:220px;overflow-y:auto;top:100%;left:0;"
+                        >
+                            <li
+                                v-for="client in filteredClientsList"
+                                :key="client.id"
+                                class="list-group-item list-group-item-action py-1 px-2"
+                                style="cursor:pointer;font-size:0.9rem;"
+                                @mousedown.prevent="selectClient(client)"
+                            >
+                                {{ client.name }}
+                            </li>
+                        </ul>
                     </div>
 
                     <div class="col-md-2 mb-2">
@@ -229,6 +258,32 @@ const breadcrumbs = [
 const loading = ref(false);
 const showAdvanced = ref(false);
 const perPage = ref(25);
+const clientSearch = ref('');
+const showClientDropdown = ref(false);
+
+const filteredClientsList = computed(() => {
+    const q = clientSearch.value.trim().toLowerCase();
+    if (!q) return props.clients;
+    return props.clients.filter(c => c.name.toLowerCase().includes(q));
+});
+
+function selectClient(client) {
+    filters.client_id = client.id;
+    clientSearch.value = client.name;
+    showClientDropdown.value = false;
+}
+
+function clearClientFilter() {
+    filters.client_id = '';
+    clientSearch.value = '';
+    showClientDropdown.value = false;
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-client-autocomplete]')) {
+        showClientDropdown.value = false;
+    }
+});
 
 const filters = reactive({
     numero_bl: '',
@@ -287,6 +342,7 @@ function fetchBons(page = 1) {
 function resetFilters() {
     filters.numero_bl = '';
     filters.client_id = '';
+    clientSearch.value = '';
     filters.statut = '';
     filters.date_from = '';
     filters.date_to = '';

@@ -17,7 +17,7 @@
                             <button type="button" class="btn-toggle-offcanvas" @click="toggleSidebar"><i class="fa fa-bars"></i></button>
                             <button type="button" class="btn-toggle-fullwidth" @click="toggleSidebar"><i class="fa fa-bars"></i></button>
                             <Link href="/" class="text-blue-500 hover:underline">
-                                {{ appName }}
+                                MELAMINE
                             </Link>
                         </div>
 
@@ -103,7 +103,7 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 
 const currentUrl = window.location.pathname;
 const page = usePage();
-const appName = import.meta.env.VITE_APP_NAME || page.props?.appName || 'SAMABOIS';
+const appName = import.meta.env.VITE_APP_NAME || page.props?.appName || 'MELAMINE';
 const authUser = computed(() => page.props.auth?.user);
 const isAdmin = computed(() => authUser.value?.role === 'admin');
 const isPageLoading = ref(true);
@@ -136,6 +136,7 @@ const allMenuItems = [
         subMenu: [
             { name: 'Liste des planches',   url: '/admin/planches' },
             { name: 'Ajouter des planches', url: '/admin/planches/create' },
+            { name: 'Vue globale du stock', url: '/admin/planches/details-global' },
           //  { name: 'Contrats',             url: '/admin/contrats' },
         ],
     },
@@ -169,10 +170,10 @@ const allMenuItems = [
     {
         name: 'Configuration',
         icon: 'fa fa-cogs',
-        roles: ['admin'],
+        roles: ['admin', 'comptable'],
         subMenu: [
-            { name: 'Paramètres',          url: '/admin/configuration' },
-            { name: 'Tarifs prix de revient', url: '/admin/configuration/planche-tarifs' },
+            { name: 'Paramètres',             url: '/admin/configuration',                roles: ['admin', 'comptable'] },
+            { name: 'Tarifs prix de revient', url: '/admin/configuration/planche-tarifs', roles: ['admin'] },
         ],
     },
     {
@@ -186,7 +187,12 @@ const allMenuItems = [
 
 const menuItems = computed(() => {
     const role = authUser.value?.role;
-    return allMenuItems.filter(item => item.roles.includes(role));
+    return allMenuItems
+        .filter(item => item.roles.includes(role))
+        .map(item => ({
+            ...item,
+            subMenu: item.subMenu.filter(sub => !sub.roles || sub.roles.includes(role)),
+        }));
 });
 
 const toggleSubMenu = (menuName) => {

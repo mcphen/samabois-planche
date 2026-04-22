@@ -57,7 +57,7 @@ class PlancheBonLivraisonController extends Controller
         return Inertia::render('PlancheBonsLivraison/Show', [
             'bonLivraison' => $this->decorateBonLivraison($plancheBonLivraison),
             'availableDetails' => $plancheBonLivraison->statut === 'brouillon'
-                ? $this->availableDetailsCollection(null, '', '', '', '', $plancheBonLivraison->id)
+                ? $this->availableDetailsCollection(null, '', '', '', $plancheBonLivraison->id)
                 : [],
             'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
             'clients' => Client::query()->select('id', 'name', 'slug')->orderBy('name')->get(),
@@ -70,7 +70,7 @@ class PlancheBonLivraisonController extends Controller
 
         return Inertia::render('PlancheBonsLivraison/Edit', [
             'bonLivraison' => $this->decorateBonLivraison($plancheBonLivraison),
-            'availableDetails' => $this->availableDetailsCollection(null, '', '', '', '', $plancheBonLivraison->id),
+            'availableDetails' => $this->availableDetailsCollection(null, '', '', '', $plancheBonLivraison->id),
             'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
             'clients' => Client::query()->select('id', 'name', 'slug')->orderBy('name')->get(),
             'epaisseurs' => Epaisseur::query()->orderBy('intitule')->get(['id', 'intitule', 'slug']),
@@ -142,7 +142,6 @@ class PlancheBonLivraisonController extends Controller
                 $request->integer('supplier_id') ?: null,
                 $request->string('numero_contrat')->toString(),
                 $request->string('code_couleur')->toString(),
-                $request->string('categorie')->toString(),
                 $request->string('epaisseur')->toString(),
                 $request->integer('exclude_bon_livraison_id') ?: null,
                 $request->integer('contrat_id') ?: null
@@ -166,7 +165,7 @@ class PlancheBonLivraisonController extends Controller
             ]);
 
             $detailIds   = collect($request->validated('lignes'))->pluck('planche_detail_id')->unique();
-            $detailInfos = PlancheDetail::query()->whereIn('id', $detailIds)->get(['id', 'categorie', 'epaisseur'])->keyBy('id');
+            $detailInfos = PlancheDetail::query()->whereIn('id', $detailIds)->get(['id', 'epaisseur'])->keyBy('id');
 
             $bonLivraison->lignes()->createMany(
                 collect($request->validated('lignes'))
@@ -238,7 +237,7 @@ class PlancheBonLivraisonController extends Controller
 
             $plancheBonLivraison->lignes()->delete();
             $updateDetailIds   = collect($validated['lignes'])->pluck('planche_detail_id')->unique();
-            $updateDetailInfos = PlancheDetail::query()->whereIn('id', $updateDetailIds)->get(['id', 'categorie', 'epaisseur'])->keyBy('id');
+            $updateDetailInfos = PlancheDetail::query()->whereIn('id', $updateDetailIds)->get(['id', 'epaisseur'])->keyBy('id');
             $plancheBonLivraison->lignes()->createMany(
                 collect($validated['lignes'])
                     ->map(fn (array $ligne) => $this->mapBonLivraisonLinePayload($ligne, $contratMap, $updateDetailInfos))
@@ -338,7 +337,7 @@ class PlancheBonLivraisonController extends Controller
         return [
             'client:id,name',
             'lignes:id,planche_bon_livraison_id,planche_detail_id,contrat_id,quantite_livree,prix_unitaire,prix_total,prix_de_revient',
-            'lignes.plancheDetail:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
+            'lignes.plancheDetail:id,planche_id,planche_couleur_id,epaisseur,quantite_prevue',
             'lignes.plancheDetail.couleur:id,code',
             'lignes.plancheDetail.planche:id,contrat_id',
             'lignes.plancheDetail.planche.contrat:id,supplier_id,numero',
@@ -350,7 +349,6 @@ class PlancheBonLivraisonController extends Controller
         ?int $supplierId = null,
         string $numeroContrat = '',
         string $codeCouleur = '',
-        string $categorie = '',
         string $epaisseur = '',
         ?int $excludeBonLivraisonId = null,
         ?int $contratId = null
@@ -389,9 +387,6 @@ class PlancheBonLivraisonController extends Controller
                     $couleurQuery->where('code', 'like', '%' . trim($codeCouleur) . '%');
                 });
             })
-            ->when(trim($categorie) !== '', function ($query) use ($categorie) {
-                $query->where('categorie', trim($categorie));
-            })
             ->when(trim($epaisseur) !== '', function ($query) use ($epaisseur) {
                 $query->where('epaisseur', (float) str_replace(',', '.', trim($epaisseur)));
             })
@@ -407,7 +402,6 @@ class PlancheBonLivraisonController extends Controller
                     'supplier_name'         => $detail->planche?->contrat?->supplier?->name,
                     'numero_contrat'        => $detail->planche?->contrat?->numero,
                     'code_couleur'          => $detail->couleur?->code,
-                    'categorie'             => $detail->categorie,
                     'epaisseur'             => $detail->epaisseur,
                     'quantite_prevue'       => (int) $detail->quantite_prevue,
                     'quantite_livree_total' => $quantiteLivree,
@@ -419,7 +413,6 @@ class PlancheBonLivraisonController extends Controller
                 ['supplier_name', 'asc'],
                 ['numero_contrat', 'asc'],
                 ['code_couleur', 'asc'],
-                ['categorie', 'asc'],
                 ['epaisseur', 'asc'],
             ])
             ->values();
@@ -443,7 +436,6 @@ class PlancheBonLivraisonController extends Controller
                 'supplier_name'     => $ligne->plancheDetail?->planche?->contrat?->supplier?->name,
                 'numero_contrat'    => $ligne->plancheDetail?->planche?->contrat?->numero,
                 'code_couleur'      => $ligne->plancheDetail?->couleur?->code,
-                'categorie'         => $ligne->plancheDetail?->categorie,
                 'epaisseur'         => $ligne->plancheDetail?->epaisseur,
                 'quantite_prevue'   => (int) ($ligne->plancheDetail?->quantite_prevue ?? 0),
                 'prix_de_revient'   => $prixDeRevient,
@@ -485,7 +477,7 @@ class PlancheBonLivraisonController extends Controller
             $detail = $detailInfos->get($ligne['planche_detail_id']);
             if ($detail) {
                 $contratId     = $contratMap->get($ligne['contrat'] ?? '');
-                $prixDeRevient = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur, is_int($contratId) ? $contratId : null);
+                $prixDeRevient = PlancheTarif::getPrixFor($detail->epaisseur, is_int($contratId) ? $contratId : null);
             }
         }
 

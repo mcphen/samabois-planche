@@ -60,7 +60,7 @@
                     <div>
                         <h5 class="mb-1">Lignes de planche</h5>
                         <small class="text-muted">
-                            Couleur, categorie, epaisseur et quantite prevue sont saisis sur la meme ligne. Le bouton + reprend la ligne courante.
+                            Couleur, epaisseur et quantite prevue sont saisis sur la meme ligne. Le bouton + reprend la ligne courante.
                         </small>
                     </div>
                     <span class="badge badge-light border">{{ form.rows.length }} ligne(s)</span>
@@ -70,9 +70,8 @@
                     <table class="table table-sm table-bordered table-hover mb-0" style="background:#fff;">
                         <thead style="background:#f0f4ff;">
                             <tr>
-                                <th style="width:30%;">Code couleur</th>
-                                <th style="width:15%;">Categorie</th>
-                                <th style="width:13%;">Epaisseur</th>
+                                <th style="width:40%;">Code couleur</th>
+                                <th style="width:18%;">Epaisseur</th>
                                 <th style="width:17%;">Quantite prevue</th>
                                 <th class="text-center" style="width:15%;">Actions</th>
                             </tr>
@@ -103,17 +102,6 @@
                                     </div>
                                     <small v-if="errors[`rows.${index}.code_couleur`]" class="text-danger d-block mt-1">
                                         {{ errors[`rows.${index}.code_couleur`][0] }}
-                                    </small>
-                                </td>
-                                <td>
-                                    <select v-model="row.categorie" class="form-control form-control-sm">
-                                        <option value="">Selectionner...</option>
-                                        <option value="mate">Mate</option>
-                                        <option value="semi_brillant">Semi-brillant</option>
-                                        <option value="brillant">Brillant</option>
-                                    </select>
-                                    <small v-if="errors[`rows.${index}.categorie`]" class="text-danger d-block mt-1">
-                                        {{ errors[`rows.${index}.categorie`][0] }}
                                     </small>
                                 </td>
                                 <td>
@@ -310,7 +298,6 @@ function createRow(defaults = {}) {
         code_couleur: defaults.code_couleur || '',
         code_couleur_from_selection: defaults.code_couleur_from_selection || '',
         existing_image_url: defaults.existing_image_url || '',
-        categorie: defaults.categorie || '',
         epaisseur: defaults.epaisseur || '',
         quantite_prevue: defaults.quantite_prevue || '',
     };
@@ -329,7 +316,6 @@ function addRow(index) {
         code_couleur: source?.code_couleur || '',
         code_couleur_from_selection: source?.code_couleur_from_selection || '',
         existing_image_url: source?.existing_image_url || '',
-        categorie: source?.categorie || '',
         epaisseur: source?.epaisseur || '',
         quantite_prevue: source?.quantite_prevue || '',
     }));
@@ -381,7 +367,7 @@ function buildPayload() {
     const rowMap = [];
 
     form.value.rows.forEach((row) => {
-        const key = `${normalizeCode(row.code_couleur)}|${row.categorie || ''}`;
+        const key = normalizeCode(row.code_couleur);
         let groupIndex = keyToGroupIndex.get(key);
 
         if (groupIndex === undefined) {
@@ -389,7 +375,6 @@ function buildPayload() {
             keyToGroupIndex.set(key, groupIndex);
             groupes.push({
                 code_couleur: row.code_couleur,
-                categorie: row.categorie,
                 epaisseurs: [],
             });
         }
@@ -431,7 +416,7 @@ function mapServerErrors(serverErrors, rowMap) {
             return;
         }
 
-        let match = path.match(/^groupes\.(\d+)\.(code_couleur|categorie)$/);
+        let match = path.match(/^groupes\.(\d+)\.(code_couleur)$/);
         if (match) {
             const groupIndex = Number(match[1]);
             const field = match[2];

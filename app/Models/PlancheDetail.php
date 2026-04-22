@@ -12,7 +12,6 @@ class PlancheDetail extends Model
     protected $fillable = [
         'planche_id',
         'planche_couleur_id',
-        'categorie',
         'epaisseur',
         'quantite_prevue',
     ];

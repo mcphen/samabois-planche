@@ -111,7 +111,6 @@
                                                             <tr>
                                                                 <th>ID planche</th>
                                                                 <th>Code couleur</th>
-                                                                <th>Categorie</th>
                                                                 <th>Resume epaisseurs / feuilles</th>
                                                                 <th>Total feuilles</th>
                                                                 <th>Actions</th>
@@ -119,7 +118,7 @@
                                                         </thead>
                                                         <tbody>
                                                             <tr v-if="!contrat.planches?.length">
-                                                                <td colspan="6" class="text-center py-3">
+                                                                <td colspan="5" class="text-center py-3">
                                                                     Aucune planche pour ce contrat.
                                                                 </td>
                                                             </tr>
@@ -130,11 +129,6 @@
                                                                     <td>
                                                                         <span class="badge badge-info">
                                                                             {{ planche.code_couleur || '-' }}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td>
-                                                                        <span class="badge" :class="categorieBadgeClass(planche.categorie)">
-                                                                            {{ categorieLabel(planche.categorie) }}
                                                                         </span>
                                                                     </td>
                                                                     <td>
@@ -177,7 +171,7 @@
                                                                 </tr>
 
                                                                 <tr v-if="isPlancheExpanded(contrat.id, planche.id)">
-                                                                    <td colspan="6" class="p-0">
+                                                                    <td colspan="5" class="p-0">
                                                                         <div class="p-3 border-top bg-white">
                                                                             <div class="table-responsive">
                                                                                 <table class="table table-sm mb-0">
@@ -185,14 +179,13 @@
                                                                                         <tr>
                                                                                             <th>ID detail</th>
                                                                                             <th>Code couleur</th>
-                                                                                            <th>Categorie</th>
                                                                                             <th>Epaisseur</th>
                                                                                             <th>Quantite prevue</th>
                                                                                         </tr>
                                                                                     </thead>
                                                                                     <tbody>
                                                                                         <tr v-if="!planche.details?.length">
-                                                                                            <td colspan="5" class="text-center py-3">
+                                                                                            <td colspan="4" class="text-center py-3">
                                                                                                 Aucun detail pour cette planche.
                                                                                             </td>
                                                                                         </tr>
@@ -200,7 +193,6 @@
                                                                                         <tr v-for="detail in planche.details" :key="detail.id">
                                                                                             <td>#{{ detail.id }}</td>
                                                                                             <td>{{ detail.couleur?.code || planche.code_couleur || '-' }}</td>
-                                                                                            <td>{{ categorieLabel(detail.categorie) }}</td>
                                                                                             <td>{{ formatDecimal(detail.epaisseur) }} mm</td>
                                                                                             <td>{{ detail.quantite_prevue || 0 }}</td>
                                                                                         </tr>
@@ -371,14 +363,6 @@ function deletePlanche(plancheId) {
     axios.delete(`/admin/planches/${plancheId}/destroy`).then(() => {
         fetchContrats(contrats.value.current_page || 1);
     });
-}
-
-function categorieLabel(cat) {
-    return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-';
-}
-
-function categorieBadgeClass(cat) {
-    return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light';
 }
 
 function formatDecimal(value) {

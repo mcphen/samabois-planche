@@ -93,11 +93,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
             });
 
             Route::prefix('/configuration')->group(function () {
-                Route::get('/', [ConfigurationController::class, 'index'])->name('configuration.index');
-                Route::get('/epaisseurs', [EpaisseurController::class, 'index'])->name('configuration.epaisseurs.index');
-                Route::post('/epaisseurs', [EpaisseurController::class, 'store'])->name('configuration.epaisseurs.store');
-                Route::put('/epaisseurs/{epaisseur}', [EpaisseurController::class, 'update'])->name('configuration.epaisseurs.update');
-                Route::delete('/epaisseurs/{epaisseur}', [EpaisseurController::class, 'destroy'])->name('configuration.epaisseurs.destroy');
                 Route::post('/planche-couleurs', [PlancheCouleurController::class, 'store'])->name('configuration.planche-couleurs.store');
                 Route::post('/planche-couleurs/{plancheCouleur}', [PlancheCouleurController::class, 'update'])->name('configuration.planche-couleurs.update');
                 Route::delete('/planche-couleurs/{plancheCouleur}', [PlancheCouleurController::class, 'destroy'])->name('configuration.planche-couleurs.destroy');
@@ -112,6 +107,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::middleware('role:admin,comptable')->group(function () {
             Route::get('/clients/liste-clients', [ClientController::class, 'getClients'])->name('clients.api');
             Route::get('/configuration/planche-couleurs', [PlancheCouleurController::class, 'index'])->name('configuration.planche-couleurs.index');
+            Route::prefix('/configuration')->group(function () {
+                Route::get('/', [ConfigurationController::class, 'index'])->name('configuration.index');
+                Route::get('/epaisseurs', [EpaisseurController::class, 'index'])->name('configuration.epaisseurs.index');
+                Route::post('/epaisseurs', [EpaisseurController::class, 'store'])->name('configuration.epaisseurs.store');
+                Route::put('/epaisseurs/{epaisseur}', [EpaisseurController::class, 'update'])->name('configuration.epaisseurs.update');
+                Route::delete('/epaisseurs/{epaisseur}', [EpaisseurController::class, 'destroy'])->name('configuration.epaisseurs.destroy');
+            });
         });
 
             Route::prefix('/configuration')->middleware('role:admin')->group(function () {
@@ -137,6 +139,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [PlancheController::class, 'index'])->name('planches.index');
             Route::get('/create', [PlancheController::class, 'create'])->name('planches.create');
             Route::get('/listes', [PlancheController::class, 'getPlanches'])->name('planches.list');
+            Route::get('/details-global', [PlancheController::class, 'detailsGlobalIndex'])->name('planches.details-global.index');
+            Route::get('/details-global/search', [PlancheController::class, 'getDetailsGlobal'])->name('planches.details-global.search');
             Route::get('/couleurs', [PlancheController::class, 'searchCouleurs'])->name('planches.colors.search');
             Route::post('/couleurs', [PlancheController::class, 'storeCouleur'])->name('planches.colors.store');
             Route::get('/{planche}', [PlancheController::class, 'show'])->name('planches.show');

@@ -77,12 +77,69 @@ class PlancheController extends Controller
         ], $couleur->wasRecentlyCreated ? 201 : 200);
     }
 
+    public function detailsGlobalIndex()
+    {
+        return Inertia::render('Planches/GlobalComponent', [
+            'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
+        ]);
+    }
+
+    public function getDetailsGlobal(Request $request)
+    {
+        $details = PlancheDetail::query()
+            ->with([
+                'couleur:id,code',
+                'planche:id,contrat_id',
+                'planche.contrat:id,supplier_id,numero',
+                'planche.contrat.supplier:id,name',
+            ])
+            ->withSum('bonLivraisonLignes as total_quantite_livree', 'quantite_livree')
+            ->when($request->filled('supplier_id'), function ($q) use ($request) {
+                $q->whereHas('planche.contrat', fn ($c) => $c->where('supplier_id', $request->integer('supplier_id')));
+            })
+            ->when($request->filled('numero_contrat'), function ($q) use ($request) {
+                $q->whereHas('planche.contrat', fn ($c) => $c->where('numero', 'like', '%' . trim($request->string('numero_contrat')) . '%'));
+            })
+            ->when($request->filled('code_couleur'), function ($q) use ($request) {
+                $q->whereHas('couleur', fn ($c) => $c->where('code', 'like', '%' . trim($request->string('code_couleur')) . '%'));
+            })
+            ->when($request->filled('epaisseur'), function ($q) use ($request) {
+                $q->where('epaisseur', (float) str_replace(',', '.', trim($request->string('epaisseur'))));
+            })
+            ->orderBy('id')
+            ->get()
+            ->map(function (PlancheDetail $d) {
+                $livree      = (int) ($d->total_quantite_livree ?? 0);
+                $disponible  = max((int) $d->quantite_prevue - $livree, 0);
+                return [
+                    'id'                 => $d->id,
+                    'supplier_name'      => $d->planche?->contrat?->supplier?->name,
+                    'numero_contrat'     => $d->planche?->contrat?->numero,
+                    'code_couleur'       => $d->couleur?->code,
+                    'epaisseur'          => $d->epaisseur,
+                    'quantite_prevue'    => (int) $d->quantite_prevue,
+                    'quantite_livree'    => $livree,
+                    'quantite_disponible'=> $disponible,
+                    'disponible'         => $disponible > 0,
+                ];
+            });
+
+        $disponibilite = $request->string('disponibilite')->toString();
+        if ($disponibilite === 'disponible') {
+            $details = $details->filter(fn ($d) => $d['disponible']);
+        } elseif ($disponibilite === 'epuise') {
+            $details = $details->filter(fn ($d) => !$d['disponible']);
+        }
+
+        return response()->json($details->values());
+    }
+
     public function show(Planche $planche)
     {
         $planche->load([
             'contrat:id,supplier_id,numero',
             'contrat.supplier:id,name,address,phone,email',
-            'details:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
+            'details:id,planche_id,planche_couleur_id,epaisseur,quantite_prevue',
             'details.couleur:id,code,image_path',
         ]);
         $this->decoratePlanche($planche);
@@ -91,25 +148,25 @@ class PlancheController extends Controller
             ->where('contrat_id', $planche->contrat_id)
             ->whereKeyNot($planche->id)
             ->with([
-                'details:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
+                'details:id,planche_id,planche_couleur_id,epaisseur,quantite_prevue',
                 'details.couleur:id,code,image_path',
             ])
             ->select('id', 'contrat_id')
             ->get()
             ->map(fn (Planche $item) => $this->decoratePlanche($item))
-            ->sortBy(fn (Planche $item) => $item->code_couleur . '|' . $item->categorie)
+            ->sortBy(fn (Planche $item) => $item->code_couleur)
             ->values();
 
         $contratPlanches = Planche::query()
             ->where('contrat_id', $planche->contrat_id)
             ->with([
-                'details:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
+                'details:id,planche_id,planche_couleur_id,epaisseur,quantite_prevue',
                 'details.couleur:id,code,image_path',
             ])
             ->select('id', 'contrat_id')
             ->get()
             ->map(fn (Planche $item) => $this->decoratePlanche($item))
-            ->sortBy(fn (Planche $item) => $item->code_couleur . '|' . $item->categorie)
+            ->sortBy(fn (Planche $item) => $item->code_couleur)
             ->values();
 
         return Inertia::render('Planches/Show', [
@@ -128,7 +185,7 @@ class PlancheController extends Controller
                     $plancheQuery
                         ->select('id', 'contrat_id', 'created_at')
                         ->with([
-                            'details:id,planche_id,planche_couleur_id,categorie,epaisseur,quantite_prevue',
+                            'details:id,planche_id,planche_couleur_id,epaisseur,quantite_prevue',
                             'details.couleur:id,code,image_path',
                         ])
                         ->withSum('details as total_quantite_prevue', 'quantite_prevue')
@@ -175,7 +232,6 @@ class PlancheController extends Controller
                 $groupes = collect($request->validated('groupes'))
                     ->map(fn (array $groupe) => [
                         'code_couleur' => $this->normalizeCodeCouleur($groupe['code_couleur']),
-                        'categorie'    => $groupe['categorie'],
                         'epaisseurs'   => $groupe['epaisseurs'],
                     ]);
 
@@ -201,15 +257,14 @@ class PlancheController extends Controller
                     throw ValidationException::withMessages($missingErrors);
                 }
 
-                // Check for duplicate (color + category) already in this contract
+                // Check for duplicate color already in this contract
                 $existants = [];
                 foreach ($groupes as $groupe) {
-                    $code     = $groupe['code_couleur'];
-                    $cat      = $groupe['categorie'];
-                    $couleur  = $couleurs->get($code);
+                    $code    = $groupe['code_couleur'];
+                    $couleur = $couleurs->get($code);
 
-                    if ($couleur && $this->findPlancheForContratCouleurCategorie($contrat->id, $couleur->id, $cat)) {
-                        $existants[] = "$code / " . $this->categorieLabel($cat);
+                    if ($couleur && $this->findPlancheForContratCouleur($contrat->id, $couleur->id)) {
+                        $existants[] = $code;
                     }
                 }
 
@@ -222,18 +277,14 @@ class PlancheController extends Controller
                 $planches = collect();
 
                 foreach ($groupes as $groupe) {
-                    $code     = $groupe['code_couleur'];
-                    $cat      = $groupe['categorie'];
-                    $couleur  = $couleurs[$code];
-
-                    $couleurs[$code] = $couleur;
+                    $code    = $groupe['code_couleur'];
+                    $couleur = $couleurs[$code];
 
                     $planche = $this->createPlancheForContrat($contrat->id, $code);
 
                     $planche->details()->createMany(
                         collect($groupe['epaisseurs'])->map(fn (array $ep) => [
                             'planche_couleur_id' => $couleur->id,
-                            'categorie'          => $cat,
                             'epaisseur'          => $ep['epaisseur'],
                             'quantite_prevue'    => $ep['quantite_prevue'],
                         ])->values()->all()
@@ -299,27 +350,24 @@ class PlancheController extends Controller
         try {
             $result = DB::transaction(function () use ($request, $planche) {
                 $codeCouleur    = trim($request->string('code_couleur')->toString());
-                $categorie      = $request->input('categorie');
                 $epaisseur      = (float) $request->input('epaisseur');
                 $quantitePrevue = (int) $request->input('quantite_prevue');
                 $couleur        = $this->findExistingCouleurOrFail($codeCouleur);
 
-                $targetPlanche = $this->findPlancheForContratCouleurCategorie($planche->contrat_id, $couleur->id, $categorie)
+                $targetPlanche = $this->findPlancheForContratCouleur($planche->contrat_id, $couleur->id)
                     ?? $this->createPlancheForContrat($planche->contrat_id, $codeCouleur);
 
                 if ($targetPlanche->details()
                     ->where('planche_couleur_id', $couleur->id)
-                    ->where('categorie', $categorie)
                     ->where('epaisseur', $epaisseur)
                     ->exists()) {
                     throw ValidationException::withMessages([
-                        'epaisseur' => 'Cette épaisseur existe déjà pour ce code couleur et cette catégorie.',
+                        'epaisseur' => 'Cette épaisseur existe déjà pour ce code couleur.',
                     ]);
                 }
 
                 $detail = $targetPlanche->details()->create([
                     'planche_couleur_id' => $couleur->id,
-                    'categorie'          => $categorie,
                     'epaisseur'          => $epaisseur,
                     'quantite_prevue'    => $quantitePrevue,
                 ]);
@@ -367,24 +415,22 @@ class PlancheController extends Controller
             $result = DB::transaction(function () use ($request, $planche, $detail) {
                 $anciennePlanche = $detail->planche;
                 $codeCouleur     = trim($request->string('code_couleur')->toString());
-                $categorie       = $request->input('categorie');
                 $epaisseur       = (float) $request->input('epaisseur');
                 $quantitePrevue  = (int) $request->input('quantite_prevue');
                 $couleur         = $this->findExistingCouleurOrFail($codeCouleur);
 
-                $targetPlanche = $this->findPlancheForContratCouleurCategorie($planche->contrat_id, $couleur->id, $categorie)
+                $targetPlanche = $this->findPlancheForContratCouleur($planche->contrat_id, $couleur->id)
                     ?? $this->createPlancheForContrat($planche->contrat_id, $codeCouleur);
 
                 $duplicate = $targetPlanche->details()
                     ->where('planche_couleur_id', $couleur->id)
-                    ->where('categorie', $categorie)
                     ->where('epaisseur', $epaisseur)
                     ->whereKeyNot($detail->id)
                     ->exists();
 
                 if ($duplicate) {
                     throw ValidationException::withMessages([
-                        'epaisseur' => 'Cette épaisseur existe déjà pour ce code couleur et cette catégorie.',
+                        'epaisseur' => 'Cette épaisseur existe déjà pour ce code couleur.',
                     ]);
                 }
 
@@ -407,7 +453,6 @@ class PlancheController extends Controller
                 $detail->update([
                     'planche_id'         => $targetPlanche->id,
                     'planche_couleur_id' => $couleur->id,
-                    'categorie'          => $categorie,
                     'epaisseur'          => $epaisseur,
                     'quantite_prevue'    => $quantitePrevue,
                 ]);
@@ -418,7 +463,7 @@ class PlancheController extends Controller
                     $redirectTo = $this->deletePlancheIfEmpty($anciennePlanche, $planche->id, $planche->contrat_id);
                 }
 
-                $prixRevient       = PlancheTarif::getPrixFor($detail->categorie, $detail->epaisseur, $planche->contrat_id);
+                $prixRevient       = PlancheTarif::getPrixFor($detail->epaisseur, $planche->contrat_id);
                 $quantiteLivree    = $detail->bonLivraisonLignes()->sum('quantite_livree');
                 $totalPrixTotal    = $detail->bonLivraisonLignes()->sum('prix_total');
 
@@ -513,12 +558,12 @@ class PlancheController extends Controller
         $nextPlanche = Planche::query()
             ->where('contrat_id', $contratId)
             ->with([
-                'details:id,planche_id,planche_couleur_id,categorie',
+                'details:id,planche_id,planche_couleur_id,epaisseur',
                 'details.couleur:id,code,image_path',
             ])
             ->get()
             ->map(fn (Planche $item) => $this->decoratePlanche($item))
-            ->sortBy(fn (Planche $item) => $item->code_couleur . '|' . $item->categorie)
+            ->sortBy(fn (Planche $item) => $item->code_couleur)
             ->first();
 
         return $nextPlanche
@@ -660,13 +705,12 @@ class PlancheController extends Controller
         ])->save();
     }
 
-    private function findPlancheForContratCouleurCategorie(int $contratId, int $couleurId, string $categorie): ?Planche
+    private function findPlancheForContratCouleur(int $contratId, int $couleurId): ?Planche
     {
         return Planche::query()
             ->where('contrat_id', $contratId)
-            ->whereHas('details', function ($detailQuery) use ($couleurId, $categorie) {
-                $detailQuery->where('planche_couleur_id', $couleurId)
-                            ->where('categorie', $categorie);
+            ->whereHas('details', function ($detailQuery) use ($couleurId) {
+                $detailQuery->where('planche_couleur_id', $couleurId);
             })
             ->first();
     }
@@ -675,11 +719,9 @@ class PlancheController extends Controller
     {
         $firstDetail = $planche->details->first();
         $couleur     = $firstDetail?->couleur;
-        $categorie   = $firstDetail?->categorie;
 
         $planche->setRelation('couleur', $couleur);
         $planche->setAttribute('code_couleur', $couleur ? $this->extractCouleurCode($couleur) : null);
-        $planche->setAttribute('categorie', $categorie);
 
         return $planche;
     }
@@ -688,7 +730,7 @@ class PlancheController extends Controller
     {
         $planches = $contrat->planches
             ->map(fn (Planche $item) => $this->decoratePlanche($item))
-            ->sortBy(fn (Planche $item) => ($item->code_couleur ?? '') . '|' . ($item->categorie ?? ''))
+            ->sortBy(fn (Planche $item) => $item->code_couleur ?? '')
             ->values();
 
         $contrat->setRelation('planches', $planches);
@@ -697,16 +739,6 @@ class PlancheController extends Controller
         $contrat->setAttribute('total_quantite_prevue', $planches->sum(fn (Planche $item) => (int) ($item->total_quantite_prevue ?? 0)));
 
         return $contrat;
-    }
-
-    private function categorieLabel(string $categorie): string
-    {
-        return match ($categorie) {
-            'mate'          => 'Mate',
-            'semi_brillant' => 'Semi-brillant',
-            'brillant'      => 'Brillant',
-            default         => $categorie,
-        };
     }
 
     private function databaseErrorResponse(

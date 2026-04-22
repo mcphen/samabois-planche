@@ -37,7 +37,6 @@
             <th>Fournisseur</th>
             <th>Contrat</th>
             <th>Code couleur</th>
-            <th>Catégorie</th>
             <th>Epaisseur</th>
             <th>Qté prévue</th>
             <th>Qté livrée</th>
@@ -45,15 +44,10 @@
         </thead>
         <tbody>
         @foreach ($invoice->plancheBonLivraison?->lignes ?? [] as $ligne)
-            @php
-                $categorieLabels = ['mate' => 'Mate', 'semi_brillant' => 'Semi-brillant', 'brillant' => 'Brillant'];
-                $cat = $ligne->plancheDetail?->categorie ?? '';
-            @endphp
             <tr>
                 <td>{{ $ligne->plancheDetail?->planche?->contrat?->supplier?->name ?? '-' }}</td>
                 <td>{{ $ligne->plancheDetail?->planche?->contrat?->numero ?? '-' }}</td>
                 <td>{{ $ligne->plancheDetail?->couleur?->code ?? '-' }}</td>
-                <td>{{ $categorieLabels[$cat] ?? $cat ?: '-' }}</td>
                 <td>{{ number_format((float) ($ligne->plancheDetail?->epaisseur ?? 0), 2, ',', '.') }}</td>
                 <td>{{ (int) ($ligne->plancheDetail?->quantite_prevue ?? 0) }}</td>
                 <td>{{ (int) $ligne->quantite_livree }}</td>

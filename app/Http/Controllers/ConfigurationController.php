@@ -14,6 +14,7 @@ class ConfigurationController extends Controller
     public function index(): Response
     {
         return Inertia::render('Configuration/Index', [
+            'userRole' => auth()->user()->role,
             'epaisseurs' => Epaisseur::query()
                 ->orderBy('intitule')
                 ->get(['id', 'intitule', 'slug'])

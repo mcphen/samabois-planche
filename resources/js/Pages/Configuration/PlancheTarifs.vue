@@ -15,7 +15,7 @@
                         <div>
                             <h2>Grille tarifaire <span class="badge badge-secondary ml-2">{{ tarifs.length }}</span></h2>
                             <p class="text-muted mb-0" style="font-size:0.85rem;">
-                                Le prix de revient est déterminé automatiquement selon la catégorie et l'épaisseur de chaque planche.
+                                Le prix de revient est déterminé automatiquement selon l'épaisseur de chaque planche.
                             </p>
                         </div>
                         <button type="button" class="btn btn-success btn-sm" @click="openAddModal">
@@ -30,7 +30,6 @@
                             <table class="table table-sm table-bordered table-hover mb-0">
                                 <thead style="background:#f0f4ff;">
                                     <tr>
-                                        <th>Catégorie</th>
                                         <th class="text-center">Épaisseur</th>
                                         <th>Contrat</th>
                                         <th class="text-right">Prix de revient</th>
@@ -39,11 +38,6 @@
                                 </thead>
                                 <tbody>
                                     <tr v-for="tarif in sortedTarifs" :key="tarif.id">
-                                        <td>
-                                            <span class="badge" :class="categorieBadgeClass(tarif.categorie)">
-                                                {{ categorieLabel(tarif.categorie) }}
-                                            </span>
-                                        </td>
                                         <td class="text-center">{{ formatDecimal(tarif.epaisseur) }}</td>
                                         <td>
                                             <span v-if="tarif.contrat" class="badge badge-info">{{ tarif.contrat.numero }}</span>
@@ -97,16 +91,6 @@
                         <small v-if="formErrors.contrat_id" class="text-danger d-block mt-1">{{ formErrors.contrat_id[0] }}</small>
                     </div>
                     <div class="form-group">
-                        <label>Catégorie *</label>
-                        <select v-model="form.categorie" class="form-control">
-                            <option value="">Sélectionner...</option>
-                            <option value="mate">Mate</option>
-                            <option value="semi_brillant">Semi-brillant</option>
-                            <option value="brillant">Brillant</option>
-                        </select>
-                        <small v-if="formErrors.categorie" class="text-danger d-block mt-1">{{ formErrors.categorie[0] }}</small>
-                    </div>
-                    <div class="form-group">
                         <label>Épaisseur *</label>
                         <select v-model="form.epaisseur" class="form-control">
                             <option value="">Sélectionner...</option>
@@ -149,7 +133,6 @@
                     <h5 class="modal-title">
                         <i class="fa fa-bar-chart mr-2 text-info"></i>
                         Bénéfices réalisés —
-                        <span class="badge" :class="categorieBadgeClass(beneficesData?.tarif?.categorie)">{{ categorieLabel(beneficesData?.tarif?.categorie) }}</span>
                         {{ formatDecimal(beneficesData?.tarif?.epaisseur) }} mm
                         <span class="ml-2 text-muted" style="font-size:0.85rem;">(Prix revient : {{ formatCurrency(beneficesData?.tarif?.prix) }})</span>
                     </h5>
@@ -282,7 +265,7 @@ function openBenefices(tarif) {
 const form = ref(buildEmptyForm());
 
 function buildEmptyForm() {
-    return { categorie: '', epaisseur: '', prix: '', contrat_id: null, update_lignes: false };
+    return { epaisseur: '', prix: '', contrat_id: null, update_lignes: false };
 }
 
 const epaisseurOptions = computed(() =>
@@ -297,10 +280,7 @@ const epaisseurOptions = computed(() =>
 );
 
 const sortedTarifs = computed(() =>
-    [...tarifs.value].sort((a, b) => {
-        if (a.categorie !== b.categorie) return a.categorie.localeCompare(b.categorie);
-        return Number(a.epaisseur) - Number(b.epaisseur);
-    })
+    [...tarifs.value].sort((a, b) => Number(a.epaisseur) - Number(b.epaisseur))
 );
 
 function openAddModal() {
@@ -313,7 +293,7 @@ function openAddModal() {
 
 function startEdit(tarif) {
     editingTarif.value = tarif;
-    form.value = { categorie: tarif.categorie, epaisseur: String(Number(tarif.epaisseur)), prix: tarif.prix, contrat_id: tarif.contrat_id ?? null, update_lignes: false };
+    form.value = { epaisseur: String(Number(tarif.epaisseur)), prix: tarif.prix, contrat_id: tarif.contrat_id ?? null, update_lignes: false };
     formError.value = '';
     formErrors.value = {};
     showFormModal.value = true;
@@ -333,7 +313,6 @@ function submitForm() {
     formErrors.value = {};
 
     const payload = {
-        categorie:   form.value.categorie,
         epaisseur:   form.value.epaisseur,
         prix:        form.value.prix,
         contrat_id:  form.value.contrat_id || null,
@@ -369,7 +348,7 @@ function submitForm() {
 function deleteTarif(tarif) {
     Swal.fire({
         title: 'Supprimer ce tarif ?',
-        text: `${categorieLabel(tarif.categorie)} — ${formatDecimal(tarif.epaisseur)} → ${formatCurrency(tarif.prix)}`,
+        text: `${formatDecimal(tarif.epaisseur)} mm → ${formatCurrency(tarif.prix)}`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
@@ -387,12 +366,6 @@ function deleteTarif(tarif) {
     });
 }
 
-function categorieLabel(cat) {
-    return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-';
-}
-function categorieBadgeClass(cat) {
-    return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light';
-}
 function formatDecimal(value) {
     return value === null || value === undefined ? '-' : Number(value).toFixed(2);
 }

@@ -76,16 +76,13 @@ class DashboardController extends Controller
             $query->where('client_id', $request->client_id);
         }
 
-        if ($request->filled('couleur_id') || $request->filled('epaisseur') || $request->filled('categorie')) {
+        if ($request->filled('couleur_id') || $request->filled('epaisseur')) {
             $query->whereHas('lignes.plancheDetail', function ($q) use ($request) {
                 if ($request->filled('couleur_id')) {
                     $q->where('planche_couleur_id', $request->couleur_id);
                 }
                 if ($request->filled('epaisseur')) {
                     $q->where('epaisseur', $request->epaisseur);
-                }
-                if ($request->filled('categorie')) {
-                    $q->where('categorie', $request->categorie);
                 }
             });
         }
@@ -110,8 +107,7 @@ class DashboardController extends Controller
             ->join('planche_bon_livraison_lignes as lignes', 'planche_bons_livraison.id', '=', 'lignes.planche_bon_livraison_id')
             ->leftJoin('planche_details as details', 'lignes.planche_detail_id', '=', 'details.id')
             ->leftJoin('planche_tarifs as tarifs', function ($join) {
-                $join->on('tarifs.categorie', '=', 'details.categorie')
-                     ->on('tarifs.epaisseur', '=', 'details.epaisseur');
+                $join->on('tarifs.epaisseur', '=', 'details.epaisseur');
             })
             ->select(
                 DB::raw('YEAR(planche_bons_livraison.date_livraison) as year'),
@@ -174,16 +170,13 @@ class DashboardController extends Controller
             $query->where('client_id', $request->client_id);
         }
 
-        if ($request->filled('couleur_id') || $request->filled('epaisseur') || $request->filled('categorie')) {
+        if ($request->filled('couleur_id') || $request->filled('epaisseur')) {
             $query->whereHas('lignes.plancheDetail', function ($q) use ($request) {
                 if ($request->filled('couleur_id')) {
                     $q->where('planche_couleur_id', $request->couleur_id);
                 }
                 if ($request->filled('epaisseur')) {
                     $q->where('epaisseur', $request->epaisseur);
-                }
-                if ($request->filled('categorie')) {
-                    $q->where('categorie', $request->categorie);
                 }
             });
         }

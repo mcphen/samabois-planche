@@ -45,7 +45,6 @@
                                 <td>
                                     <span v-if="entry.planche_detail">
                                         {{ entry.planche_detail.code_couleur || '-' }}
-                                        {{ entry.planche_detail.categorie || '-' }}
                                         {{ formatDecimal(entry.planche_detail.epaisseur) }}
                                     </span>
                                     <span v-else>-</span>

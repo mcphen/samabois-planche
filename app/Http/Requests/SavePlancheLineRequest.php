@@ -15,7 +15,6 @@ class SavePlancheLineRequest extends FormRequest
     {
         return [
             'code_couleur'    => ['required', 'string', 'max:255'],
-            'categorie'       => ['required', 'in:mate,semi_brillant,brillant'],
             'epaisseur'       => ['required', 'numeric', 'min:0.01'],
             'quantite_prevue' => ['required', 'integer', 'min:1'],
         ];

@@ -19,7 +19,6 @@ class StorePlancheRequest extends FormRequest
             'numero_contrat'                           => ['required', 'string', 'max:255'],
             'groupes'                                  => ['required', 'array', 'min:1'],
             'groupes.*.code_couleur'                   => ['required', 'string', 'max:255'],
-            'groupes.*.categorie'                      => ['required', 'in:mate,semi_brillant,brillant'],
             'groupes.*.epaisseurs'                     => ['required', 'array', 'min:1'],
             'groupes.*.epaisseurs.*.epaisseur'          => ['required', 'numeric', 'min:0.01'],
             'groupes.*.epaisseurs.*.quantite_prevue'   => ['required', 'integer', 'min:1'],
@@ -43,31 +42,29 @@ class StorePlancheRequest extends FormRequest
 
             foreach ($groupes as $gi => $groupe) {
                 $codeCouleur = mb_strtolower(trim((string) ($groupe['code_couleur'] ?? '')));
-                $categorie   = (string) ($groupe['categorie'] ?? '');
 
                 if ($codeCouleur === '') {
                     continue;
                 }
 
-                // Duplicate (color + category) group in same submission
-                $cleGroupe = $codeCouleur . '|' . $categorie;
-                if (isset($groupesCles[$cleGroupe])) {
+                // Duplicate color group in same submission
+                if (isset($groupesCles[$codeCouleur])) {
                     $validator->errors()->add(
-                        "groupes.$gi.categorie",
-                        'Cette combinaison couleur/catégorie est déjà présente dans le formulaire.'
+                        "groupes.$gi.code_couleur",
+                        'Ce code couleur est déjà présent dans le formulaire.'
                     );
                 }
-                $groupesCles[$cleGroupe] = true;
+                $groupesCles[$codeCouleur] = true;
 
                 // Duplicate epaisseur within same group
                 foreach ($groupe['epaisseurs'] ?? [] as $ei => $ep) {
                     $epaisseur = number_format((float) ($ep['epaisseur'] ?? 0), 2, '.', '');
-                    $cleEp     = $cleGroupe . '|' . $epaisseur;
+                    $cleEp     = $codeCouleur . '|' . $epaisseur;
 
                     if (isset($epaisseursCles[$cleEp])) {
                         $validator->errors()->add(
                             "groupes.$gi.epaisseurs.$ei.epaisseur",
-                            'Une même épaisseur ne peut apparaître qu\'une seule fois pour un groupe couleur/catégorie.'
+                            'Une même épaisseur ne peut apparaître qu\'une seule fois pour un groupe couleur.'
                         );
                     }
 

@@ -36,7 +36,6 @@
     </table>
 
     @php
-        $categorieLabels = ['mate' => 'Mate', 'semi_brillant' => 'Semi-brillant', 'brillant' => 'Brillant'];
         $totalQteLivree  = $bon->lignes->sum('quantite_livree');
         $totalMontant    = $bon->lignes->sum('prix_total');
     @endphp
@@ -45,7 +44,6 @@
         <thead>
             <tr>
                 <th>Code couleur</th>
-                <th>Categorie</th>
                 <th>Epaisseur</th>
                 <th>Qte livree</th>
                 <th>Prix unitaire</th>
@@ -54,10 +52,8 @@
         </thead>
         <tbody>
             @foreach ($bon->lignes as $ligne)
-                @php $cat = $ligne->plancheDetail?->categorie ?? ''; @endphp
                 <tr>
                     <td>{{ $ligne->plancheDetail?->couleur?->code ?? '-' }}</td>
-                    <td>{{ $categorieLabels[$cat] ?? ($cat ?: '-') }}</td>
                     <td>{{ number_format((float) ($ligne->plancheDetail?->epaisseur ?? 0), 2, '.', '') }}</td>
                     <td>{{ (int) $ligne->quantite_livree }}</td>
                     <td>{{ number_format((int) $ligne->prix_unitaire, 0, ',', '.') }} CFA</td>
@@ -67,7 +63,7 @@
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="3" class="text-right">Totaux</td>
+                <td colspan="2" class="text-right">Totaux</td>
                 <td>{{ (int) $totalQteLivree }}</td>
                 <td></td>
                 <td>{{ number_format((int) $totalMontant, 0, ',', '.') }} CFA</td>

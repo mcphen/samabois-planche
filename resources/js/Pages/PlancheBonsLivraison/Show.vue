@@ -57,7 +57,6 @@
                                     <tr>
                                         <th>Contrat</th>
                                         <th>Code couleur</th>
-                                        <th>Categorie</th>
                                         <th>Epaisseur</th>
                                         <th>Qte livree</th>
                                         <th>Prix unitaire</th>
@@ -67,17 +66,12 @@
                                 </thead>
                                 <tbody>
                                     <tr v-if="!bonLivraison.lignes.length">
-                                        <td colspan="9" class="text-center py-4">Aucune ligne.</td>
+                                        <td colspan="6" class="text-center py-4">Aucune ligne.</td>
                                     </tr>
                                     <tr v-for="ligne in bonLivraison.lignes" :key="ligne.id">
                                         <td>{{ ligne.numero_contrat || '-' }}</td>
                                         <td>
                                             <span class="badge badge-info">{{ ligne.code_couleur || '-' }}</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge" :class="categorieBadgeClass(ligne.categorie)">
-                                                {{ categorieLabel(ligne.categorie) }}
-                                            </span>
                                         </td>
                                         <td>{{ formatDecimal(ligne.epaisseur) }}</td>
                                         <td>{{ ligne.quantite_livree }}</td>
@@ -195,15 +189,6 @@ function cancelBonLivraison() {
                 );
             });
     });
-}
-
-function categorieBadgeClass(cat) {
-    return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light';
-}
-
-function categorieLabel(cat) {
-    const map = { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' };
-    return map[cat] || cat || '-';
 }
 
 function formatDecimal(value) {

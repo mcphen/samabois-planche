@@ -34,7 +34,7 @@
                             Couleurs planches
                         </a>
                     </li>
-                    <li class="nav-item">
+                    <li v-if="isAdmin" class="nav-item">
                         <a
                             href="#"
                             class="nav-link"
@@ -220,7 +220,7 @@
                 </div>
 
                 <div v-show="activeTab === 'planche-couleurs'">
-                    <ConfigurationPlancheCouleursTab :initial-items="props.plancheCouleurs" />
+                    <ConfigurationPlancheCouleursTab :initial-items="props.plancheCouleurs" :can-edit="isAdmin" />
                 </div>
 
                 <div v-show="activeTab === 'suppliers'">
@@ -234,7 +234,7 @@
 <script setup>
 import axios from 'axios';
 import { Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
 import ConfigurationPlancheCouleursTab from '@/Components/ConfigurationPlancheCouleursTab.vue';
@@ -244,7 +244,10 @@ const props = defineProps({
     epaisseurs: { type: Array, default: () => [] },
     plancheCouleurs: { type: Array, default: () => [] },
     suppliers: { type: Array, default: () => [] },
+    userRole: { type: String, default: 'comptable' },
 });
+
+const isAdmin = computed(() => props.userRole === 'admin');
 
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [

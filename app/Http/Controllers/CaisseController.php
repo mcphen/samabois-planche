@@ -620,7 +620,11 @@ class CaisseController extends Controller
      */
     public function correctClientPaymentByTxn(Request $request, $transaction)
     {
-        $txn = CaisseTransaction::findOrFail($transaction);
+        $txn = CaisseTransaction::find($transaction);
+
+        if (!$txn) {
+            return response()->json(['message' => 'Transaction introuvable ou déjà supprimée.'], 404);
+        }
 
         // Doit être une entrée liée à un paiement client
         if ($txn->type !== 'entree' || $txn->movement_type !== CaisseTransaction::MOV_ENTREE_CLIENT || is_null($txn->payment_id) || is_null($txn->transaction_id)) {
@@ -679,16 +683,6 @@ class CaisseController extends Controller
                 'movement_type' => CaisseTransaction::MOV_ENTREE_CLIENT,
             ]);
 
-            // Mettre à jour soldes client si possible
-            if ($linkedTxn && $linkedTxn->client_id) {
-                $client = \App\Models\Client::find($linkedTxn->client_id);
-                if ($client) {
-                    // recalcul via agrégats existants
-                    $pc = new PaymentController();
-                    $pc->updateAmountClient($client, $client->id);
-                }
-            }
-
             // Journalisation de la correction
             FinanceCorrection::create([
                 'correction_type'     => 'client_payment',
@@ -726,7 +720,11 @@ class CaisseController extends Controller
      */
     public function correctIncomingTransferByTxn(Request $request, $transaction)
     {
-        $destTxn = CaisseTransaction::findOrFail($transaction);
+        $destTxn = CaisseTransaction::find($transaction);
+
+        if (!$destTxn) {
+            return response()->json(['message' => 'Transaction introuvable ou déjà supprimée.'], 404);
+        }
 
         if ($destTxn->type !== 'entree' || $destTxn->movement_type !== CaisseTransaction::MOV_TRANSFERT_ENTRANT || is_null($destTxn->caisse_transfer_id)) {
             return response()->json(['message' => "La ligne ciblée n'est pas un transfert entrant corrigeable."], 422);
@@ -784,7 +782,11 @@ class CaisseController extends Controller
      */
     public function deleteClientPaymentByTxn(Request $request, $transaction)
     {
-        $txn = CaisseTransaction::findOrFail($transaction);
+        $txn = CaisseTransaction::find($transaction);
+
+        if (!$txn) {
+            return response()->json(['message' => 'Ce paiement a déjà été supprimé.'], 404);
+        }
 
         if ($txn->type !== 'entree' || $txn->movement_type !== CaisseTransaction::MOV_ENTREE_CLIENT || is_null($txn->payment_id) || is_null($txn->transaction_id)) {
             return response()->json(['message' => "La ligne ciblée n'est pas un paiement client supprimable."], 422);
@@ -865,15 +867,6 @@ class CaisseController extends Controller
             $txn->delete();
         });
 
-        // Recalcul soldes client
-        if ($clientId) {
-            $client = \App\Models\Client::find($clientId);
-            if ($client) {
-                $pc = new PaymentController();
-                $pc->updateAmountClient($client, $client->id);
-            }
-        }
-
         return response()->json(['message' => 'Paiement supprimé avec succès.']);
     }
 
@@ -882,7 +875,11 @@ class CaisseController extends Controller
      */
     public function cancelIncomingTransfer(Request $request, $transaction)
     {
-        $destTxn = CaisseTransaction::findOrFail($transaction);
+        $destTxn = CaisseTransaction::find($transaction);
+
+        if (!$destTxn) {
+            return response()->json(['message' => 'Transaction introuvable ou déjà supprimée.'], 404);
+        }
 
         if ($destTxn->type !== 'entree' || $destTxn->movement_type !== CaisseTransaction::MOV_TRANSFERT_ENTRANT || is_null($destTxn->caisse_transfer_id)) {
             return response()->json(['message' => "La ligne ciblée n'est pas un transfert entrant annulable."], 422);

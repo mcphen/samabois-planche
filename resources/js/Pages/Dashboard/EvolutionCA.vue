@@ -56,15 +56,6 @@
                         <option v-for="e in epaisseurs" :key="e.id" :value="e.intitule">{{ e.intitule }}</option>
                     </select>
                 </div>
-                <div class="col-md-3 col-sm-6 mb-2">
-                    <label class="small font-weight-bold mb-1">Catégorie</label>
-                    <select v-model="filters.categorie" class="form-control form-control-sm">
-                        <option value="">Toutes les catégories</option>
-                        <option value="mate">Mate</option>
-                        <option value="semi_brillant">Semi-brillant</option>
-                        <option value="brillant">Brillant</option>
-                    </select>
-                </div>
             </div>
 
             <ul class="nav nav-tabs mb-3">
@@ -147,7 +138,7 @@ const epaisseurs = ref([]);
 const loading    = ref(false);
 const activeTab  = ref("chart");
 
-const filters             = ref({ client_id: "", couleur_id: "", epaisseur: "", categorie: "" });
+const filters             = ref({ client_id: "", couleur_id: "", epaisseur: "" });
 const couleurSearch       = ref("");
 const showCouleurDropdown = ref(false);
 
@@ -223,7 +214,7 @@ const fetchEvolution = async () => {
 };
 
 const resetFilters = () => {
-    filters.value             = { client_id: "", couleur_id: "", epaisseur: "", categorie: "" };
+    filters.value             = { client_id: "", couleur_id: "", epaisseur: "" };
     couleurSearch.value       = "";
     showCouleurDropdown.value = false;
     fetchEvolution();

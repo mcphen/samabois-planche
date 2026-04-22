@@ -26,20 +26,6 @@
             </div>
 
             <div class="col-lg-3 col-md-6 col-sm-12">
-                <div
-                    class="card"
-                    :style="{ background: categorieBgColor(planche.categorie) }"
-                >
-                    <div class="body">
-                        <div class="p-15 text-light">
-                            <h3>{{ categorieLabel(planche.categorie) }}</h3>
-                            <span>Categorie</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-3 col-md-6 col-sm-12">
                 <div class="card secondary-bg">
                     <div class="body">
                         <div class="p-15 text-light">
@@ -81,12 +67,6 @@
                         <div class="mb-3">
                             <strong>Code couleur :</strong>
                             <span class="badge badge-info ml-2">{{ planche.couleur?.code || '-' }}</span>
-                        </div>
-                        <div class="mb-3">
-                            <strong>Categorie :</strong>
-                            <span class="badge ml-2" :class="categorieBadgeClass(planche.categorie)">
-                                {{ categorieLabel(planche.categorie) }}
-                            </span>
                         </div>
                         <div class="mb-3">
                             <strong>ID planche :</strong>
@@ -163,7 +143,6 @@
                                 <tr>
                                     <th>Planche</th>
                                     <th>Code couleur</th>
-                                    <th>Categorie</th>
                                     <th>Nb details</th>
                                     <th>Total feuilles</th>
                                     <th>Actions</th>
@@ -184,11 +163,6 @@
                                     </td>
                                     <td>
                                         <span class="badge badge-info">{{ item.couleur?.code || item.code_couleur || '-' }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge" :class="categorieBadgeClass(item.categorie)">
-                                            {{ categorieLabel(item.categorie) }}
-                                        </span>
                                     </td>
                                     <td>{{ item.details?.length || 0 }}</td>
                                     <td class="font-weight-bold">{{ plancheTotalQuantite(item) }}</td>
@@ -217,29 +191,23 @@
                             <thead>
                                 <tr>
                                     <th>ID detail</th>
-                                    <th>Categorie</th>
                                     <th>Epaisseur (mm)</th>
                                     <th>Nb feuilles</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-if="!planche.details.length">
-                                    <td colspan="4" class="text-center">Aucun detail enregistre.</td>
+                                    <td colspan="3" class="text-center">Aucun detail enregistre.</td>
                                 </tr>
                                 <tr v-for="detail in sortedDetails" :key="detail.id">
                                     <td>#{{ detail.id }}</td>
-                                    <td>
-                                        <span class="badge" :class="categorieBadgeClass(detail.categorie)">
-                                            {{ categorieLabel(detail.categorie) }}
-                                        </span>
-                                    </td>
                                     <td>{{ formatDecimal(detail.epaisseur) }} mm</td>
                                     <td class="font-weight-bold">{{ detail.quantite_prevue }}</td>
                                 </tr>
                             </tbody>
                             <tfoot v-if="planche.details.length">
                                 <tr>
-                                    <th colspan="3">Total feuilles</th>
+                                    <th colspan="2">Total feuilles</th>
                                     <th>{{ totalQuantite }}</th>
                                 </tr>
                             </tfoot>
@@ -270,16 +238,6 @@
                             </div>
                             <small v-if="errors.code_couleur" class="text-danger d-block mt-1">{{ errors.code_couleur[0] }}</small>
                         </div>
-                        <div class="col-md-4">
-                            <label class="small font-weight-bold">Categorie *</label>
-                            <select v-model="createForm.categorie" class="form-control">
-                                <option value="">Selectionner...</option>
-                                <option value="mate">Mate</option>
-                                <option value="semi_brillant">Semi-brillant</option>
-                                <option value="brillant">Brillant</option>
-                            </select>
-                            <small v-if="errors.categorie" class="text-danger">{{ errors.categorie[0] }}</small>
-                        </div>
                         <div class="col-md-3">
                             <div
                                 v-if="createForm.existing_image_url"
@@ -293,14 +251,6 @@
                                     style="max-height:78px;object-fit:cover;margin:0 auto;"
                                 />
                             </div>
-                            <span
-                                v-if="createForm.categorie"
-                                class="badge w-100 py-2"
-                                style="font-size:13px;"
-                                :class="categorieBadgeClass(createForm.categorie)"
-                            >
-                                {{ categorieLabel(createForm.categorie) }}
-                            </span>
                         </div>
                     </div>
                     <div class="row">
@@ -327,7 +277,6 @@
                         <thead class="thead-dark">
                             <tr>
                                 <th>Code couleur</th>
-                                <th>Categorie</th>
                                 <th>Epaisseur</th>
                                 <th>Nb feuilles</th>
                                 <th>Planche</th>
@@ -336,7 +285,7 @@
                         </thead>
                         <tbody>
                             <tr v-if="!contractRows.length">
-                                <td colspan="6" class="text-center py-4">Aucune ligne disponible.</td>
+                                <td colspan="5" class="text-center py-4">Aucune ligne disponible.</td>
                             </tr>
                             <tr
                                 v-for="row in contractRows"
@@ -354,11 +303,6 @@
                                         />
                                         <span class="badge badge-info">{{ row.code_couleur }}</span>
                                     </div>
-                                </td>
-                                <td>
-                                    <span class="badge" :class="categorieBadgeClass(row.categorie)">
-                                        {{ categorieLabel(row.categorie) }}
-                                    </span>
                                 </td>
                                 <td>{{ formatDecimal(row.epaisseur) }}</td>
                                 <td>{{ row.quantite_prevue }}</td>
@@ -411,14 +355,6 @@
                                 class="img-fluid rounded border"
                                 style="max-height:160px;object-fit:cover;"
                             />
-                        </div>
-                        <div class="form-group">
-                            <label>Categorie *</label>
-                            <select v-model="editForm.categorie" class="form-control">
-                                <option value="mate">Mate</option>
-                                <option value="semi_brillant">Semi-brillant</option>
-                                <option value="brillant">Brillant</option>
-                            </select>
                         </div>
                         <div class="form-group">
                             <label>Epaisseur *</label>
@@ -496,7 +432,6 @@ function createLineForm(defaults = {}) {
     return {
         code_couleur: defaults.code_couleur || '',
         existing_image_url: defaults.image_url || '',
-        categorie: defaults.categorie || '',
         epaisseur: defaults.epaisseur || '',
         quantite_prevue: defaults.quantite_prevue || '',
     };
@@ -505,7 +440,6 @@ function createLineForm(defaults = {}) {
 const createForm = ref(createLineForm({
     code_couleur: props.planche.couleur?.code || '',
     image_url: props.planche.couleur?.image_url || '',
-    categorie: props.planche.categorie || '',
 }));
 
 const editForm = ref(createLineForm());
@@ -520,9 +454,8 @@ const totalQuantite = computed(() => {
 
 const sortedContractPlanches = computed(() => {
     return [...props.contrat_planches].sort((a, b) => {
-        const keyA = (a.code_couleur || a.couleur?.code || '') + '|' + (a.categorie || '');
-        const keyB = (b.code_couleur || b.couleur?.code || '') + '|' + (b.categorie || '');
-
+        const keyA = a.code_couleur || a.couleur?.code || '';
+        const keyB = b.code_couleur || b.couleur?.code || '';
         return keyA.localeCompare(keyB);
     });
 });
@@ -534,37 +467,20 @@ const contractRows = computed(() => {
             planche_id: item.id,
             code_couleur: item.couleur?.code || '',
             image_url: item.couleur?.image_url || '',
-            categorie: detail.categorie,
             epaisseur: detail.epaisseur,
             quantite_prevue: detail.quantite_prevue,
         })))
         .sort((a, b) => {
-            const keyA = a.code_couleur + '|' + (a.categorie || '');
-            const keyB = b.code_couleur + '|' + (b.categorie || '');
-
-            if (keyA === keyB) {
+            if (a.code_couleur === b.code_couleur) {
                 return Number(a.epaisseur) - Number(b.epaisseur);
             }
-
-            return keyA.localeCompare(keyB);
+            return a.code_couleur.localeCompare(b.code_couleur);
         });
 });
 
 const contractTotalQuantite = computed(() => {
     return contractRows.value.reduce((total, row) => total + Number(row.quantite_prevue || 0), 0);
 });
-
-function categorieLabel(cat) {
-    return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-';
-}
-
-function categorieBadgeClass(cat) {
-    return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light';
-}
-
-function categorieBgColor(cat) {
-    return { mate: '#6c757d', semi_brillant: '#fd7e14', brillant: '#28a745' }[cat] || '#adb5bd';
-}
 
 function formatDecimal(value) {
     if (value === null || value === undefined || value === '') {
@@ -639,7 +555,6 @@ function addLine() {
             createForm.value = createLineForm({
                 code_couleur: createForm.value.code_couleur,
                 image_url: createForm.value.existing_image_url,
-                categorie: createForm.value.categorie,
             });
             reloadPage();
         })
@@ -663,7 +578,6 @@ function openEditModal(row) {
     editForm.value = createLineForm({
         code_couleur: row.code_couleur,
         image_url: row.image_url,
-        categorie: row.categorie,
         epaisseur: row.epaisseur,
         quantite_prevue: row.quantite_prevue,
     });

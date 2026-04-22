@@ -84,7 +84,6 @@
                                     <th style="width: 36px;" class="text-center">#</th>
                                     <th style="min-width: 140px;">Contrat</th>
                                     <th style="min-width: 160px;">Code couleur</th>
-                                    <th style="min-width: 150px;">Categorie</th>
                                     <th style="min-width: 130px;">Epaisseur</th>
                                     <th style="width: 110px;" class="text-center">Disponible</th>
                                     <th style="width: 120px;">Qte livree</th>
@@ -127,20 +126,6 @@
                                         <small v-if="ligne.contrat && !ligne.loadingDetails && !ligne.couleurOptions.length" class="text-warning">
                                             Aucune disponibilite
                                         </small>
-                                    </td>
-
-                                    <td class="align-middle">
-                                        <select
-                                            v-model="ligne.categorie"
-                                            class="form-control form-control-sm"
-                                            :disabled="!ligne.categoriesDisponibles.length"
-                                            @change="onCategorieChange(index)"
-                                        >
-                                            <option value="">-</option>
-                                            <option v-for="cat in ligne.categoriesDisponibles" :key="cat" :value="cat">
-                                                {{ categorieLabel(cat) }}
-                                            </option>
-                                        </select>
                                     </td>
 
                                     <td class="align-middle">
@@ -263,7 +248,6 @@
                             <thead class="thead-dark">
                                 <tr>
                                     <th>Code couleur</th>
-                                    <th>Categorie</th>
                                     <th>Epaisseur</th>
                                     <th>Disponible</th>
                                     <th>Qte livree</th>
@@ -274,16 +258,11 @@
                             </thead>
                             <tbody>
                                 <tr v-if="!validLignes.length">
-                                    <td colspan="8" class="text-center py-4">Aucune ligne complete.</td>
+                                    <td colspan="7" class="text-center py-4">Aucune ligne complete.</td>
                                 </tr>
                                 <tr v-for="(ligne, index) in validLignes" :key="ligne.planche_detail_id">
                                     <td class="align-middle">
                                         <span class="badge badge-info">{{ ligne.code_couleur || '-' }}</span>
-                                    </td>
-                                    <td class="align-middle">
-                                        <span class="badge" :class="categorieBadgeClass(ligne.categorie)">
-                                            {{ categorieLabel(ligne.categorie) }}
-                                        </span>
                                     </td>
                                     <td class="align-middle">{{ formatDecimal(ligne.epaisseur) }}</td>
                                     <td class="align-middle text-center">{{ ligne.quantite_disponible }}</td>
@@ -449,8 +428,6 @@ function createEmptyLigne() {
         allDetails: [],
         couleurOptions: [],
         code_couleur: '',
-        categoriesDisponibles: [],
-        categorie: '',
         epaisseurOptions: [],
         epaisseur: '',
         planche_detail_id: null,
@@ -481,8 +458,6 @@ function onLigneContratChange(index) {
     ligne.allDetails = [];
     ligne.couleurOptions = [];
     ligne.code_couleur = '';
-    ligne.categorie = '';
-    ligne.categoriesDisponibles = [];
     ligne.epaisseur = '';
     ligne.epaisseurOptions = [];
     ligne.planche_detail_id = null;
@@ -526,8 +501,6 @@ async function fetchDetailsForContrat(index) {
 
 function onCodeCouleurChange(index) {
     const ligne = lignes.value[index];
-    ligne.categorie = '';
-    ligne.categoriesDisponibles = [];
     ligne.epaisseur = '';
     ligne.epaisseurOptions = [];
     ligne.planche_detail_id = null;
@@ -535,32 +508,9 @@ function onCodeCouleurChange(index) {
 
     if (!ligne.code_couleur) return;
 
-    // Ne cascader que si la valeur correspond exactement a une option disponible
     const isExactMatch = ligne.couleurOptions.includes(ligne.code_couleur);
     if (!isExactMatch) return;
 
-    const filtered = ligne.allDetails.filter((d) => d.code_couleur === ligne.code_couleur);
-    const seen = new Set();
-    ligne.categoriesDisponibles = filtered
-        .map((d) => d.categorie)
-        .filter((c) => c && !seen.has(c) && seen.add(c));
-
-    if (ligne.categoriesDisponibles.length === 1) {
-        ligne.categorie = ligne.categoriesDisponibles[0];
-        onCategorieChange(index);
-    }
-}
-
-function onCategorieChange(index) {
-    const ligne = lignes.value[index];
-    ligne.epaisseur = '';
-    ligne.epaisseurOptions = [];
-    ligne.planche_detail_id = null;
-    ligne.quantite_disponible = null;
-
-    if (!ligne.categorie) return;
-
-    // Exclure les detail_id deja utilises dans d autres lignes
     const usedDetailIds = new Set(
         lignes.value
             .filter((_, i) => i !== index)
@@ -570,11 +520,7 @@ function onCategorieChange(index) {
 
     const seen = new Set();
     ligne.epaisseurOptions = ligne.allDetails
-        .filter((d) =>
-            d.code_couleur === ligne.code_couleur &&
-            d.categorie === ligne.categorie &&
-            !usedDetailIds.has(d.id)
-        )
+        .filter((d) => d.code_couleur === ligne.code_couleur && !usedDetailIds.has(d.id))
         .filter((d) => {
             const key = String(d.epaisseur);
             if (seen.has(key)) return false;
@@ -772,15 +718,6 @@ function submitForm() {
 }
 
 // --- Helpers ---
-
-function categorieBadgeClass(cat) {
-    return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light';
-}
-
-function categorieLabel(cat) {
-    const map = { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' };
-    return map[cat] || cat || '-';
-}
 
 function formatDecimal(value) {
     if (value === null || value === undefined || value === '') return '-';
