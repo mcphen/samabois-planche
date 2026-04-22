@@ -13,15 +13,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use App\Models\FinanceCorrection;
+use App\Services\ClientBalanceService;
 use App\Services\CaisseTransferService;
 
 class CaisseController extends Controller
 {
     protected $caisseTransferService;
+    protected $clientBalanceService;
 
-    public function __construct(CaisseTransferService $caisseTransferService)
+    public function __construct(CaisseTransferService $caisseTransferService, ClientBalanceService $clientBalanceService)
     {
         $this->caisseTransferService = $caisseTransferService;
+        $this->clientBalanceService = $clientBalanceService;
     }
 
     public function index()
@@ -684,8 +687,7 @@ class CaisseController extends Controller
                 $client = \App\Models\Client::find($linkedTxn->client_id);
                 if ($client) {
                     // recalcul via agrégats existants
-                    $pc = new PaymentController();
-                    $pc->updateAmountClient($client, $client->id);
+                    $this->clientBalanceService->sync($client);
                 }
             }
 
@@ -869,8 +871,7 @@ class CaisseController extends Controller
         if ($clientId) {
             $client = \App\Models\Client::find($clientId);
             if ($client) {
-                $pc = new PaymentController();
-                $pc->updateAmountClient($client, $client->id);
+                $this->clientBalanceService->sync($client);
             }
         }
 
@@ -1301,5 +1302,3 @@ class CaisseController extends Controller
     }
 
 }
-
-
