@@ -174,7 +174,7 @@ const allMenuItems = [
         roles: ['admin', 'comptable'],
         subMenu: [
             { name: 'Paramètres',          url: '/admin/configuration' },
-            { name: 'Tarifs prix de revient', url: '/admin/configuration/planche-tarifs', roles: ['admin'] },
+           // { name: 'Tarifs prix de revient', url: '/admin/configuration/planche-tarifs', roles: ['admin'] },
         ],
     },
     {
