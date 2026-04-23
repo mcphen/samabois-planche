@@ -100,7 +100,7 @@
                                     <span class="badge badge-info" v-if="d.code_couleur">{{ d.code_couleur }}</span>
                                     <span v-else class="text-muted">-</span>
                                 </td>
-                                <td class="text-right">{{ formatDecimal(d.epaisseur) }}</td>
+                                <td class="text-right">{{ formatInteger(d.epaisseur) }}</td>
                                 <td class="text-right">{{ d.quantite_prevue }}</td>
                                 <td class="text-right">{{ d.quantite_livree }}</td>
                                 <td class="text-right font-weight-bold">{{ d.quantite_disponible }}</td>
@@ -153,7 +153,7 @@ const filters = reactive({
     numero_contrat: '',
     code_couleur: '',
     epaisseur: '',
-    disponibilite: '',
+    disponibilite: 'disponible',
 });
 
 async function fetchDetails() {
@@ -188,9 +188,9 @@ const totalDisponibles = computed(() => details.value.reduce((s, d) => s + d.qua
 const totalDisponible  = computed(() => details.value.filter(d => d.disponible).length);
 const totalEpuise      = computed(() => details.value.filter(d => !d.disponible).length);
 
-function formatDecimal(value) {
+function formatInteger(value) {
     if (value === null || value === undefined || value === '') return '-';
-    return Number(value).toFixed(2);
+    return Math.round(Number(value));
 }
 
 onMounted(fetchDetails);
