@@ -189,10 +189,22 @@ const menuItems = computed(() => {
     const role = authUser.value?.role;
     return allMenuItems
         .filter(item => item.roles.includes(role))
-        .map(item => ({
-            ...item,
-            subMenu: item.subMenu.filter(sub => !sub.roles || sub.roles.includes(role)),
-        }));
+        .map(item => {
+            const subMenu = item.subMenu?.filter(sub => !sub.roles || sub.roles.includes(role)) ?? [];
+
+            if (role === 'comptable' && item.name === 'Configuration' && subMenu.length === 1) {
+                return {
+                    ...item,
+                    url: subMenu[0].url,
+                    subMenu: [],
+                };
+            }
+
+            return {
+                ...item,
+                subMenu,
+            };
+        });
 });
 
 const toggleSubMenu = (menuName) => {

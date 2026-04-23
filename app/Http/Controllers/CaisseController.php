@@ -13,15 +13,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use App\Models\FinanceCorrection;
+use App\Services\ClientBalanceService;
 use App\Services\CaisseTransferService;
 
 class CaisseController extends Controller
 {
     protected $caisseTransferService;
+    protected $clientBalanceService;
 
-    public function __construct(CaisseTransferService $caisseTransferService)
+    public function __construct(CaisseTransferService $caisseTransferService, ClientBalanceService $clientBalanceService)
     {
         $this->caisseTransferService = $caisseTransferService;
+        $this->clientBalanceService = $clientBalanceService;
     }
 
     public function index()
@@ -683,6 +686,15 @@ class CaisseController extends Controller
                 'movement_type' => CaisseTransaction::MOV_ENTREE_CLIENT,
             ]);
 
+            // Mettre à jour soldes client si possible
+            if ($linkedTxn && $linkedTxn->client_id) {
+                $client = \App\Models\Client::find($linkedTxn->client_id);
+                if ($client) {
+                    // recalcul via agrégats existants
+                    $this->clientBalanceService->sync($client);
+                }
+            }
+
             // Journalisation de la correction
             FinanceCorrection::create([
                 'correction_type'     => 'client_payment',
@@ -866,6 +878,14 @@ class CaisseController extends Controller
             // Supprimer la transaction de caisse
             $txn->delete();
         });
+
+        // Recalcul soldes client
+        if ($clientId) {
+            $client = \App\Models\Client::find($clientId);
+            if ($client) {
+                $this->clientBalanceService->sync($client);
+            }
+        }
 
         return response()->json(['message' => 'Paiement supprimé avec succès.']);
     }
@@ -1298,5 +1318,3 @@ class CaisseController extends Controller
     }
 
 }
-
-

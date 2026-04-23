@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use App\Services\ClientBalanceService;
 
 class ClientController extends Controller
 {
@@ -403,13 +404,13 @@ class ClientController extends Controller
             return response()->json(['error' => 'Client ID mismatch'], 400);
         }
 
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:0',
-        ]);
+        $balances = app(ClientBalanceService::class)->sync($client);
 
-        // Implementation depends on your business logic
-        // This might update a client's balance or credit limit
-        return response()->json(['message' => 'Amount updated', 'client' => $client]);
+        return response()->json([
+            'message' => 'Comptabilite du client retablie avec succes.',
+            'client' => $client->fresh(),
+            'balances' => $balances,
+        ]);
     }
 }
 

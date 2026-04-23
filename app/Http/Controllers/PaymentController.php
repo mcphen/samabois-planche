@@ -9,6 +9,7 @@ use App\Models\HistoriqueClientSolde;
 use App\Models\Payment;
 use App\Models\PlancheBonLivraison;
 use App\Models\Transaction;
+use App\Services\ClientBalanceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -186,6 +187,8 @@ class PaymentController extends Controller
             'amount' => $amountToPay,
             'date' => $transaction->transaction_date,
         ]);
+
+        app(ClientBalanceService::class)->sync($client);
         return response()->json(['message' => 'Paiement modifié avec succès.',]);
 
     }
@@ -203,6 +206,10 @@ class PaymentController extends Controller
         $client = Client::query()->find($transaction->client_id);
 
         $transaction->delete();
+
+        if ($client) {
+            app(ClientBalanceService::class)->sync($client);
+        }
 
         return response()->json(['message' => 'Le paiement a été supprimé avec succès.']);
     }
