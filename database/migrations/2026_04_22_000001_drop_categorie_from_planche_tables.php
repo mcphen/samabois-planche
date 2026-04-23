@@ -25,11 +25,11 @@ return new class extends Migration
             });
         }
 
-        if (Schema::hasColumn('planche_details', 'categorie')) {
+        /*if (Schema::hasColumn('planche_details', 'categorie')) {
             Schema::table('planche_details', function (Blueprint $table) {
                 $table->dropColumn('categorie');
             });
-        }
+        }*/
     }
 
     public function down(): void
