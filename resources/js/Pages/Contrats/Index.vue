@@ -123,22 +123,28 @@
                             <tr>
                                 <th>Fournisseur</th>
                                 <th>Contrat</th>
+                                <th class="text-center">Benefice</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-if="loading">
-                                <td colspan="3" class="text-center py-4">Chargement...</td>
+                                <td colspan="4" class="text-center py-4">Chargement...</td>
                             </tr>
 
                             <tr v-else-if="!contrats.data.length">
-                                <td colspan="3" class="text-center py-4">Aucun contrat enregistre.</td>
+                                <td colspan="4" class="text-center py-4">Aucun contrat enregistre.</td>
                             </tr>
 
                             <template v-else>
                                 <tr v-for="contrat in contrats.data" :key="contrat.id">
                                     <td>{{ contrat.supplier?.name || '-' }}</td>
                                     <td class="font-weight-bold">{{ contrat.numero || '-' }}</td>
+                                    <td class="text-center">
+                                        <span :class="contractProfitClass(contrat)">
+                                            {{ formatContractProfit(contrat) }}
+                                        </span>
+                                    </td>
                                     <td>
                                         <Link
                                             :href="`/admin/contrats/${contrat.id}`"
@@ -301,6 +307,39 @@ function resetFilters() {
     filters.client_id      = '';
     clientSearch.value     = '';
     fetchContrats();
+}
+
+function contractProfitTotal(contrat) {
+    const details = (contrat.planches || []).flatMap((planche) => planche.details || []);
+    const profits = details
+        .map((detail) => detail.profit_total)
+        .filter((profit) => profit !== null && profit !== undefined);
+
+    if (!profits.length) {
+        return null;
+    }
+
+    return profits.reduce((total, profit) => total + Number(profit || 0), 0);
+}
+
+function contractProfitClass(contrat) {
+    const profit = contractProfitTotal(contrat);
+
+    if (profit === null) {
+        return 'text-muted';
+    }
+
+    return profit >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold';
+}
+
+function formatContractProfit(contrat) {
+    const profit = contractProfitTotal(contrat);
+    return profit !== null ? formatCurrency(profit) : '-';
+}
+
+function formatCurrency(value) {
+    const num = Math.round(Number(value || 0));
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' CFA';
 }
 
 onMounted(async () => {
