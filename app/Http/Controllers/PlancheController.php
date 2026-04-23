@@ -119,56 +119,61 @@ class PlancheController extends Controller
         ]);
     }
 
-    public function detailsGlobal()
+    public function detailsGlobalIndex()
     {
-        return Inertia::render('Planches/DetailsGlobal');
+        return Inertia::render('Planches/GlobalComponent', [
+            'suppliers' => Supplier::query()->select('id', 'name')->orderBy('name')->get(),
+        ]);
     }
 
     public function getDetailsGlobal(Request $request)
     {
-        $query = PlancheDetail::query()
+        $details = PlancheDetail::query()
             ->with([
                 'couleur:id,code',
                 'planche:id,contrat_id',
-                'planche.contrat:id,numero,supplier_id',
+                'planche.contrat:id,supplier_id,numero',
                 'planche.contrat.supplier:id,name',
             ])
-            ->withSum('bonLivraisonLignes as quantite_livree', 'quantite_livree');
+            ->withSum('bonLivraisonLignes as total_quantite_livree', 'quantite_livree')
+            ->when($request->filled('supplier_id'), function ($q) use ($request) {
+                $q->whereHas('planche.contrat', fn ($c) => $c->where('supplier_id', $request->integer('supplier_id')));
+            })
+            ->when($request->filled('numero_contrat'), function ($q) use ($request) {
+                $q->whereHas('planche.contrat', fn ($c) => $c->where('numero', 'like', '%' . trim($request->string('numero_contrat')) . '%'));
+            })
+            ->when($request->filled('code_couleur'), function ($q) use ($request) {
+                $q->whereHas('couleur', fn ($c) => $c->where('code', 'like', '%' . trim($request->string('code_couleur')) . '%'));
+            })
+            ->when($request->filled('epaisseur'), function ($q) use ($request) {
+                $q->where('epaisseur', (float) str_replace(',', '.', trim($request->string('epaisseur'))));
+            })
+            ->orderBy('id')
+            ->get()
+            ->map(function (PlancheDetail $d) {
+                $livree      = (int) ($d->total_quantite_livree ?? 0);
+                $disponible  = max((int) $d->quantite_prevue - $livree, 0);
+                return [
+                    'id'                  => $d->id,
+                    'supplier_name'       => $d->planche?->contrat?->supplier?->name,
+                    'numero_contrat'      => $d->planche?->contrat?->numero,
+                    'code_couleur'        => $d->couleur?->code,
+                    'epaisseur'           => $d->epaisseur,
+                    'quantite_prevue'     => (int) $d->quantite_prevue,
+                    'quantite_livree'     => $livree,
+                    'quantite_disponible' => $disponible,
+                    'disponible'          => $disponible > 0,
+                ];
+            });
 
-        if ($request->filled('code_couleur')) {
-            $code = $request->string('code_couleur')->toString();
-            $query->whereHas('couleur', fn ($q) => $q->where('code', 'like', '%' . $code . '%'));
+        $disponibilite = $request->string('disponibilite')->toString();
+        if ($disponibilite === 'disponible') {
+            $details = $details->filter(fn ($d) => $d['disponible']);
+        } elseif ($disponibilite === 'epuise') {
+            $details = $details->filter(fn ($d) => !$d['disponible']);
         }
 
-        if ($request->filled('numero_contrat')) {
-            $numero = $request->string('numero_contrat')->toString();
-            $query->whereHas('planche.contrat', fn ($q) => $q->where('numero', 'like', '%' . $numero . '%'));
-        }
-
-        if ($request->filled('categorie')) {
-            $query->where('categorie', $request->string('categorie')->toString());
-        }
-
-        if ($request->filled('epaisseur')) {
-            $query->where('epaisseur', $request->string('epaisseur')->toString());
-        }
-
-        $details = $query
-            ->orderBy('id', 'desc')
-            ->paginate(50)
-            ->through(fn (PlancheDetail $d) => [
-                'id'                => $d->id,
-                'numero_contrat'    => $d->planche?->contrat?->numero,
-                'fournisseur'       => $d->planche?->contrat?->supplier?->name,
-                'code_couleur'      => $d->couleur?->code,
-                'categorie'         => $d->categorie,
-                'epaisseur'         => $d->epaisseur,
-                'quantite_prevue'   => $d->quantite_prevue,
-                'quantite_livree'   => (int) ($d->quantite_livree ?? 0),
-                'quantite_restante' => $d->quantite_prevue - (int) ($d->quantite_livree ?? 0),
-            ]);
-
-        return response()->json($details);
+        return response()->json($details->values());
     }
 
     public function getPlanches(Request $request)
