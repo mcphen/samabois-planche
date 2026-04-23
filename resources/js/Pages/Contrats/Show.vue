@@ -121,7 +121,7 @@
                                 </div>
                             </td>
                             <td><span class="badge" :class="categorieBadgeClass(detail.categorie)">{{ categorieLabel(detail.categorie) }}</span></td>
-                            <td class="text-center">{{ formatDecimal(detail.epaisseur) }}</td>
+                            <td class="text-center">{{ detail.epaisseur != null && detail.epaisseur !== '' ? parseInt(detail.epaisseur) : '-' }}</td>
                             <td class="text-center">{{ detail.quantite_prevue || 0 }}</td>
                             <td class="text-center">{{ detail.total_quantite_livree || 0 }}</td>
                             <td class="text-center font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
@@ -199,7 +199,7 @@
                         </tr>
                         <tr v-for="tarif in filteredPlancheTarifs" :key="tarif.id">
                             <td><span class="badge" :class="categorieBadgeClass(tarif.categorie)">{{ categorieLabel(tarif.categorie) }}</span></td>
-                            <td class="text-center">{{ formatDecimal(tarif.epaisseur) }}</td>
+                            <td class="text-center">{{ tarif.epaisseur != null && tarif.epaisseur !== '' ? parseInt(tarif.epaisseur) : '-' }}</td>
                             <td class="text-center font-weight-bold">{{ formatCurrency(tarif.prix) }}</td>
                         </tr>
                     </tbody>

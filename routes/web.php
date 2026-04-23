@@ -96,6 +96,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::middleware('role:admin,comptable')->group(function () {
             Route::get('/clients/liste-clients', [ClientController::class, 'getClients'])->name('clients.api');
+            Route::post('/clients/store', [ClientController::class, 'store'])->name('clients.store.comptable');
+            Route::post('/clients/{client}/update', [ClientController::class, 'update'])->name('clients.update.comptable');
 
             Route::prefix('/configuration')->group(function () {
                 Route::get('/', [ConfigurationController::class, 'index'])->name('configuration.index');

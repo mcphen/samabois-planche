@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Models\Epaisseur;
 use App\Models\PlancheDetail;
 use App\Models\PlancheCouleur;
@@ -53,6 +54,10 @@ class ConfigurationController extends Controller
                     'contrats_count' => $supplier->contrats_count,
                     'can_delete' => $supplier->contrats_count === 0,
                 ]),
+            'clients' => Client::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'address', 'phone', 'email']),
+            'userRole' => auth()->user()->role,
         ]);
     }
 
