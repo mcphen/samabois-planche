@@ -145,6 +145,9 @@ class PlancheController extends Controller
             ->when($request->filled('code_couleur'), function ($q) use ($request) {
                 $q->whereHas('couleur', fn ($c) => $c->where('code', 'like', '%' . trim($request->string('code_couleur')) . '%'));
             })
+            ->when($request->filled('categorie'), function ($q) use ($request) {
+                $q->where('categorie', $request->string('categorie')->toString());
+            })
             ->when($request->filled('epaisseur'), function ($q) use ($request) {
                 $q->where('epaisseur', (float) str_replace(',', '.', trim($request->string('epaisseur'))));
             })

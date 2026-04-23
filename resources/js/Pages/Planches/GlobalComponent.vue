@@ -28,9 +28,19 @@
                         <input v-model="filters.code_couleur" type="text" class="form-control form-control-sm" placeholder="Ex: Bleu" />
                     </div>
 
+                    <div class="col-md-2">
+                        <label class="small font-weight-bold">Catégorie</label>
+                        <select v-model="filters.categorie" class="form-control form-control-sm">
+                            <option value="">Toutes</option>
+                            <option value="mate">Mate</option>
+                            <option value="semi_brillant">Semi-brillant</option>
+                            <option value="brillant">Brillant</option>
+                        </select>
+                    </div>
+
                     <div class="col-md-1">
                         <label class="small font-weight-bold">Épaisseur</label>
-                        <input v-model="filters.epaisseur" type="text" class="form-control form-control-sm" placeholder="Ex: 3.5" />
+                        <input v-model="filters.epaisseur" type="text" class="form-control form-control-sm" placeholder="Ex: 3" />
                     </div>
 
                     <div class="col-md-2">
@@ -101,7 +111,10 @@
                                     <span class="badge badge-info" v-if="d.code_couleur">{{ d.code_couleur }}</span>
                                     <span v-else class="text-muted">-</span>
                                 </td>
-                                <td>{{ d.categorie || '-' }}</td>
+                                <td>
+                                    <span v-if="d.categorie" :class="categorieClass(d.categorie)" class="badge">{{ categorieLabel(d.categorie) }}</span>
+                                    <span v-else class="text-muted">-</span>
+                                </td>
                                 <td class="text-right">{{ formatInteger(d.epaisseur) }}</td>
                                 <td class="text-right">{{ d.quantite_prevue }}</td>
                                 <td class="text-right">{{ d.quantite_livree }}</td>
@@ -154,6 +167,7 @@ const filters = reactive({
     supplier_id: '',
     numero_contrat: '',
     code_couleur: '',
+    categorie: '',
     epaisseur: '',
     disponibilite: 'disponible',
 });
@@ -165,6 +179,7 @@ async function fetchDetails() {
         if (filters.supplier_id)    params.supplier_id    = filters.supplier_id;
         if (filters.numero_contrat) params.numero_contrat = filters.numero_contrat;
         if (filters.code_couleur)   params.code_couleur   = filters.code_couleur;
+        if (filters.categorie)      params.categorie      = filters.categorie;
         if (filters.epaisseur)      params.epaisseur      = filters.epaisseur;
         if (filters.disponibilite)  params.disponibilite  = filters.disponibilite;
 
@@ -179,6 +194,7 @@ function resetFilters() {
     filters.supplier_id    = '';
     filters.numero_contrat = '';
     filters.code_couleur   = '';
+    filters.categorie      = '';
     filters.epaisseur      = '';
     filters.disponibilite  = '';
     fetchDetails();
@@ -193,6 +209,16 @@ const totalEpuise      = computed(() => details.value.filter(d => !d.disponible)
 function formatInteger(value) {
     if (value === null || value === undefined || value === '') return '-';
     return Math.round(Number(value));
+}
+
+function categorieLabel(cat) {
+    const map = { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' };
+    return map[cat] ?? cat;
+}
+
+function categorieClass(cat) {
+    const map = { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-primary' };
+    return map[cat] ?? 'badge-dark';
 }
 
 onMounted(fetchDetails);
