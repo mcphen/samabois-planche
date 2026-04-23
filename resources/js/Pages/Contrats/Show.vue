@@ -25,6 +25,8 @@
             
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-info"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_prevue || 0 }}</h3><span>Feuilles prevues</span></div></div></div></div>
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-success"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_disponible || 0 }}</h3><span>Disponibles</span></div></div></div></div>
+            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-primary"><div class="body"><div class="p-15 text-light"><h3>{{ formatCurrency(contractSalesTotal) }}</h3><span>Prix total des ventes</span></div></div></div></div>
+            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card" :class="contractProfitCardClass"><div class="body"><div class="p-15 text-light"><h3>{{ contractProfitTotal !== null ? formatCurrency(contractProfitTotal) : '-' }}</h3><span>Benefice total</span></div></div></div></div>
         </div>
 
         <div class="row clearfix">
@@ -616,6 +618,28 @@ const filteredPlancheTarifs = computed(() => {
     if (filterTarifCategorie.value) rows = rows.filter((t) => t.categorie === filterTarifCategorie.value);
     if (filterTarifEpaisseur.value) rows = rows.filter((t) => String(normalizeEpaisseurValue(t.epaisseur)) === String(filterTarifEpaisseur.value));
     return rows;
+});
+
+const contractSalesTotal = computed(() => contractDetails.value.reduce((total, detail) => total + Number(detail.total_prix_total || 0), 0));
+
+const contractProfitTotal = computed(() => {
+    const profits = contractDetails.value
+        .map((detail) => detail.profit_total)
+        .filter((profit) => profit !== null && profit !== undefined);
+
+    if (!profits.length) {
+        return null;
+    }
+
+    return profits.reduce((total, profit) => total + Number(profit || 0), 0);
+});
+
+const contractProfitCardClass = computed(() => {
+    if (contractProfitTotal.value === null) {
+        return 'bg-secondary';
+    }
+
+    return contractProfitTotal.value >= 0 ? 'bg-success' : 'bg-danger';
 });
 
 function buildInitialCreateForm() {
