@@ -73,7 +73,7 @@
                                         <td>
                                             <span class="badge badge-info">{{ ligne.code_couleur || '-' }}</span>
                                         </td>
-                                        <td>{{ formatDecimal(ligne.epaisseur) }}</td>
+                                        <td>{{ ligne.epaisseur != null && ligne.epaisseur !== '' ? parseInt(ligne.epaisseur) : '-' }}</td>
                                         <td>{{ ligne.quantite_livree }}</td>
                                         <td>{{ formatCurrency(ligne.prix_unitaire) }}</td>
                                         <td>{{ formatCurrency(ligne.prix_total) }}</td>

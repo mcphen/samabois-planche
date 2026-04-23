@@ -54,7 +54,7 @@
             @foreach ($bon->lignes as $ligne)
                 <tr>
                     <td>{{ $ligne->plancheDetail?->couleur?->code ?? '-' }}</td>
-                    <td>{{ number_format((float) ($ligne->plancheDetail?->epaisseur ?? 0), 2, '.', '') }}</td>
+                    <td>{{ (int) ($ligne->plancheDetail?->epaisseur ?? 0) }}</td>
                     <td>{{ (int) $ligne->quantite_livree }}</td>
                     <td>{{ number_format((int) $ligne->prix_unitaire, 0, ',', '.') }} CFA</td>
                     <td>{{ number_format((int) $ligne->prix_total, 0, ',', '.') }} CFA</td>
