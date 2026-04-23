@@ -2,7 +2,9 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 return new class extends Migration
 {
@@ -11,15 +13,30 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('clients', function (Blueprint $table) {
-            $table->string('slug')->unique()->after('name');
-        });
+        if (! Schema::hasColumn('clients', 'slug')) {
+            Schema::table('clients', function (Blueprint $table) {
+                $table->string('slug')->nullable()->unique()->after('name');
+            });
+        }
 
         // Générer les slugs pour les clients existants
-        $clients = \App\Models\Client::all();
+        $usedSlugs = [];
+        $clients = DB::table('clients')->select('id', 'name')->orderBy('id')->get();
         foreach ($clients as $client) {
-            $client->slug = \Illuminate\Support\Str::slug($client->name);
-            $client->save();
+            $baseSlug = Str::slug($client->name) ?: 'client-' . $client->id;
+            $slug = $baseSlug;
+            $suffix = 2;
+
+            while (in_array($slug, $usedSlugs, true)) {
+                $slug = $baseSlug . '-' . $suffix;
+                $suffix++;
+            }
+
+            $usedSlugs[] = $slug;
+
+            DB::table('clients')
+                ->where('id', $client->id)
+                ->update(['slug' => $slug]);
         }
     }
 
@@ -28,8 +45,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('clients', function (Blueprint $table) {
-            $table->dropColumn('slug');
-        });
+        if (Schema::hasColumn('clients', 'slug')) {
+            Schema::table('clients', function (Blueprint $table) {
+                $table->dropColumn('slug');
+            });
+        }
     }
 };

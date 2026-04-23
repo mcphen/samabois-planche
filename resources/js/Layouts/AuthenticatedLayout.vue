@@ -17,7 +17,7 @@
                             <button type="button" class="btn-toggle-offcanvas" @click="toggleSidebar"><i class="fa fa-bars"></i></button>
                             <button type="button" class="btn-toggle-fullwidth" @click="toggleSidebar"><i class="fa fa-bars"></i></button>
                             <Link href="/" class="text-blue-500 hover:underline">
-                                MELAMINE
+                                CONTREPLAQUES
                             </Link>
                         </div>
 
