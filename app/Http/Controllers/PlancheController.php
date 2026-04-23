@@ -158,6 +158,7 @@ class PlancheController extends Controller
                     'supplier_name'       => $d->planche?->contrat?->supplier?->name,
                     'numero_contrat'      => $d->planche?->contrat?->numero,
                     'code_couleur'        => $d->couleur?->code,
+                    'categorie'           => $d->categorie,
                     'epaisseur'           => $d->epaisseur,
                     'quantite_prevue'     => (int) $d->quantite_prevue,
                     'quantite_livree'     => $livree,

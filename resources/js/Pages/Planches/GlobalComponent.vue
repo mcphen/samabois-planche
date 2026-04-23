@@ -71,6 +71,7 @@
                                 <th>Fournisseur</th>
                                 <th>Contrat</th>
                                 <th>Couleur</th>
+                                <th>Catégorie</th>
                                 <th class="text-right">Épaisseur (mm)</th>
                                 <th class="text-right">Prévues</th>
                                 <th class="text-right">Livrées</th>
@@ -80,12 +81,12 @@
                         </thead>
                         <tbody>
                             <tr v-if="loading">
-                                <td colspan="9" class="text-center py-4">
+                                <td colspan="10" class="text-center py-4">
                                     <i class="fa fa-spinner fa-spin"></i> Chargement...
                                 </td>
                             </tr>
                             <tr v-else-if="!details.length">
-                                <td colspan="9" class="text-center py-4 text-muted">Aucun résultat.</td>
+                                <td colspan="10" class="text-center py-4 text-muted">Aucun résultat.</td>
                             </tr>
                             <tr
                                 v-else
@@ -100,6 +101,7 @@
                                     <span class="badge badge-info" v-if="d.code_couleur">{{ d.code_couleur }}</span>
                                     <span v-else class="text-muted">-</span>
                                 </td>
+                                <td>{{ d.categorie || '-' }}</td>
                                 <td class="text-right">{{ formatInteger(d.epaisseur) }}</td>
                                 <td class="text-right">{{ d.quantite_prevue }}</td>
                                 <td class="text-right">{{ d.quantite_livree }}</td>
@@ -112,7 +114,7 @@
                         </tbody>
                         <tfoot v-if="details.length">
                             <tr class="font-weight-bold bg-light">
-                                <td colspan="5" class="text-right">Totaux :</td>
+                                <td colspan="6" class="text-right">Totaux :</td>
                                 <td class="text-right">{{ totalPrevues }}</td>
                                 <td class="text-right">{{ totalLivrees }}</td>
                                 <td class="text-right">{{ totalDisponibles }}</td>
