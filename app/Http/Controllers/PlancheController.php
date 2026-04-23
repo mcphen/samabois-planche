@@ -119,6 +119,58 @@ class PlancheController extends Controller
         ]);
     }
 
+    public function detailsGlobal()
+    {
+        return Inertia::render('Planches/DetailsGlobal');
+    }
+
+    public function getDetailsGlobal(Request $request)
+    {
+        $query = PlancheDetail::query()
+            ->with([
+                'couleur:id,code',
+                'planche:id,contrat_id',
+                'planche.contrat:id,numero,supplier_id',
+                'planche.contrat.supplier:id,name',
+            ])
+            ->withSum('bonLivraisonLignes as quantite_livree', 'quantite_livree');
+
+        if ($request->filled('code_couleur')) {
+            $code = $request->string('code_couleur')->toString();
+            $query->whereHas('couleur', fn ($q) => $q->where('code', 'like', '%' . $code . '%'));
+        }
+
+        if ($request->filled('numero_contrat')) {
+            $numero = $request->string('numero_contrat')->toString();
+            $query->whereHas('planche.contrat', fn ($q) => $q->where('numero', 'like', '%' . $numero . '%'));
+        }
+
+        if ($request->filled('categorie')) {
+            $query->where('categorie', $request->string('categorie')->toString());
+        }
+
+        if ($request->filled('epaisseur')) {
+            $query->where('epaisseur', $request->string('epaisseur')->toString());
+        }
+
+        $details = $query
+            ->orderBy('id', 'desc')
+            ->paginate(50)
+            ->through(fn (PlancheDetail $d) => [
+                'id'                => $d->id,
+                'numero_contrat'    => $d->planche?->contrat?->numero,
+                'fournisseur'       => $d->planche?->contrat?->supplier?->name,
+                'code_couleur'      => $d->couleur?->code,
+                'categorie'         => $d->categorie,
+                'epaisseur'         => $d->epaisseur,
+                'quantite_prevue'   => $d->quantite_prevue,
+                'quantite_livree'   => (int) ($d->quantite_livree ?? 0),
+                'quantite_restante' => $d->quantite_prevue - (int) ($d->quantite_livree ?? 0),
+            ]);
+
+        return response()->json($details);
+    }
+
     public function getPlanches(Request $request)
     {
         $query = Contrat::query()

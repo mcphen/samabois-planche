@@ -138,6 +138,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('/planches')->group(function () {
             Route::get('/', [PlancheController::class, 'index'])->name('planches.index');
             Route::get('/create', [PlancheController::class, 'create'])->name('planches.create');
+            Route::get('/details-global', [PlancheController::class, 'detailsGlobal'])->name('planches.details-global');
+            Route::get('/details-global/search', [PlancheController::class, 'getDetailsGlobal'])->name('planches.details-global.search');
             Route::get('/listes', [PlancheController::class, 'getPlanches'])->name('planches.list');
             Route::get('/couleurs', [PlancheController::class, 'searchCouleurs'])->name('planches.colors.search');
             Route::post('/couleurs', [PlancheController::class, 'storeCouleur'])->name('planches.colors.store');
