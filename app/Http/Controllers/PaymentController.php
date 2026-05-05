@@ -108,7 +108,7 @@ class PaymentController extends Controller
 
     public function cancelSolde(Client $client, Request $request)
     {
-        $amountToCancel = (float) $client->amount_solde;
+        $amountToCancel = (float) app(ClientBalanceService::class)->sync($client)['amount_solde'];
 
         if ($amountToCancel == 0) {
             return response()->json(['message' => 'Le solde est déjà à zéro.'], 400);
