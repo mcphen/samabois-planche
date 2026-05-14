@@ -108,17 +108,30 @@ class PaymentController extends Controller
 
     public function cancelSolde(Client $client, Request $request)
     {
-        $amountToCancel = (float) app(ClientBalanceService::class)->sync($client)['amount_solde'];
+        // Calculer le solde avec le même filtre que l'UI (exclut les anciennes factures Invoice sans BL)
+        $totalDue = (float) Transaction::where('client_id', $client->id)
+            ->where('type', 'invoice')
+            ->where(function ($q) {
+                $q->whereNotNull('planche_bon_livraison_id')
+                  ->orWhere('isSolde', true);
+            })
+            ->sum('amount');
+
+        $totalPaid = (float) Transaction::where('client_id', $client->id)
+            ->where('type', 'payment')
+            ->sum('amount');
+
+        $amountToCancel = $totalDue - $totalPaid;
 
         if ($amountToCancel == 0) {
             return response()->json(['message' => 'Le solde est déjà à zéro.'], 400);
         }
 
         // 1. Sauvegarder dans l'historique
-        HistoriqueClientSolde::query()->firstOrCreate([
+        HistoriqueClientSolde::create([
             'client_id' => $client->id,
             'amount'    => $amountToCancel,
-            'date'      => Carbon::now()
+            'date'      => Carbon::now()->toDateString(),
         ]);
 
         if ($amountToCancel > 0) {

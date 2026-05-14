@@ -17,7 +17,7 @@
                     <button @click="showPaymentModal = true" class="btn btn-success m-1 btn-sm">
                         💰 Ajouter un Paiement
                     </button>
-                    <button @click="openCancelClient(client.id)" class="btn btn-warning m-1 btn-sm">
+                    <button v-if="total_solde !== 0" @click="openCancelClient(client.id)" class="btn btn-warning m-1 btn-sm">
                         <i class="fa fa-money"></i> Solder le compte
                     </button>
                     <button @click="restoreAccounting(client.id)" class="btn btn-info m-1 btn-sm">
