@@ -59,7 +59,10 @@ class ClientController extends Controller
 
         $totalDue = Transaction::where('client_id', $client->id)
             ->where('type', 'invoice')
-            ->whereNotNull('planche_bon_livraison_id')
+            ->where(function ($query) {
+                $query->whereNotNull('planche_bon_livraison_id')
+                    ->orWhere('isSolde', true);
+            })
             ->sum('amount');
 
         $totalPaid = Transaction::where('client_id', $client->id)
@@ -159,7 +162,10 @@ class ClientController extends Controller
                 $q->where('type', 'payment')
                   ->orWhere(function ($q2) {
                       $q2->where('type', 'invoice')
-                          ->whereNotNull('planche_bon_livraison_id');
+                          ->where(function ($q3) {
+                              $q3->whereNotNull('planche_bon_livraison_id')
+                                  ->orWhere('isSolde', true);
+                          });
                   });
             })
             ->orderBy('transaction_date', 'asc')
@@ -204,7 +210,10 @@ class ClientController extends Controller
                 $q->where('type', 'payment')
                   ->orWhere(function ($q2) {
                       $q2->where('type', 'invoice')
-                          ->whereNotNull('planche_bon_livraison_id');
+                          ->where(function ($q3) {
+                              $q3->whereNotNull('planche_bon_livraison_id')
+                                  ->orWhere('isSolde', true);
+                          });
                   });
             })
             ->orderBy('transaction_date', 'asc')
@@ -311,7 +320,11 @@ class ClientController extends Controller
                 $query->whereNotNull('planche_bon_livraison_id');
             })
             ->withSum(['transactions as total_invoices' => function ($query) {
-                $query->where('type', 'invoice')->whereNotNull('planche_bon_livraison_id');
+                $query->where('type', 'invoice')
+                      ->where(function ($q) {
+                          $q->whereNotNull('planche_bon_livraison_id')
+                            ->orWhere('isSolde', true);
+                      });
             }], 'amount')
             ->withSum(['transactions as total_payments' => function ($query) {
                 $query->where('type', 'payment');
@@ -339,7 +352,11 @@ class ClientController extends Controller
                 $query->whereNotNull('planche_bon_livraison_id');
             })
             ->withSum(['transactions as total_invoices' => function ($query) {
-                $query->where('type', 'invoice')->whereNotNull('planche_bon_livraison_id');
+                $query->where('type', 'invoice')
+                      ->where(function ($q) {
+                          $q->whereNotNull('planche_bon_livraison_id')
+                            ->orWhere('isSolde', true);
+                      });
             }], 'amount')
             ->withSum(['transactions as total_payments' => function ($query) {
                 $query->where('type', 'payment');
