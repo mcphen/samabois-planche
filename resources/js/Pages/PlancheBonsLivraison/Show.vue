@@ -103,27 +103,8 @@
                         <hr>
 
                         <div class="row clearfix">
-                            <div class="col-md-6">
-                                <table class="table table-sm" style="max-width: 400px;">
-                                    <tbody>
-                                        <tr>
-                                            <td><strong>Total facture</strong></td>
-                                            <td class="text-right">{{ formatCurrency(bonLivraison.montant_total) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Montant payé</strong></td>
-                                            <td class="text-right text-success">{{ formatCurrency(bonLivraison.montant_solde) }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Reste à payer</strong></td>
-                                            <td class="text-right text-danger">
-                                                <strong>{{ formatCurrency(bonLivraison.montant_total - bonLivraison.montant_solde) }}</strong>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="col-md-6 text-right">
+                            
+                            <div class="col-md-12 text-right">
                                 <h3 class="mb-0 m-t-10">
                                     Total : {{ formatCurrency(bonLivraison.montant_total) }}
                                 </h3>

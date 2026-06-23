@@ -22,6 +22,7 @@ class ContratController extends Controller
                 ->select('id', 'name')
                 ->orderBy('name')
                 ->get(),
+            'userRole' => auth()->user()->role,
         ]);
     }
 

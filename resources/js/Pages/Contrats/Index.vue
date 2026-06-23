@@ -123,24 +123,24 @@
                             <tr>
                                 <th>Fournisseur</th>
                                 <th>Contrat</th>
-                                <th class="text-center">Benefice</th>
+                                <th v-if="canSeeContractFinancialTotals" class="text-center">Benefice</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-if="loading">
-                                <td colspan="4" class="text-center py-4">Chargement...</td>
+                                <td :colspan="tableColspan" class="text-center py-4">Chargement...</td>
                             </tr>
 
                             <tr v-else-if="!contrats.data.length">
-                                <td colspan="4" class="text-center py-4">Aucun contrat enregistre.</td>
+                                <td :colspan="tableColspan" class="text-center py-4">Aucun contrat enregistre.</td>
                             </tr>
 
                             <template v-else>
                                 <tr v-for="contrat in contrats.data" :key="contrat.id">
                                     <td>{{ contrat.supplier?.name || '-' }}</td>
                                     <td class="font-weight-bold">{{ contrat.numero || '-' }}</td>
-                                    <td class="text-center">
+                                    <td v-if="canSeeContractFinancialTotals" class="text-center">
                                         <span :class="contractProfitClass(contrat)">
                                             {{ formatContractProfit(contrat) }}
                                         </span>
@@ -205,12 +205,20 @@ import { Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import BreadcrumbsAndActions from '@/Components/Nav/BreadcrumbsAndActions.vue';
 
-defineProps({
+const props = defineProps({
     suppliers: {
         type: Array,
         default: () => [],
     },
+    userRole: {
+        type: String,
+        default: 'user',
+    },
 });
+
+const normalizedUserRole = computed(() => String(props.userRole || '').trim().toLowerCase());
+const canSeeContractFinancialTotals = computed(() => normalizedUserRole.value === 'admin');
+const tableColspan = computed(() => (canSeeContractFinancialTotals.value ? 4 : 3));
 
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [

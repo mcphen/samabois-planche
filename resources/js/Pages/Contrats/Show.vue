@@ -25,8 +25,8 @@
             
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-info"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_prevue || 0 }}</h3><span>Feuilles prevues</span></div></div></div></div>
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-success"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_disponible || 0 }}</h3><span>Disponibles</span></div></div></div></div>
-            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-primary"><div class="body"><div class="p-15 text-light"><h3>{{ formatCurrency(contractSalesTotal) }}</h3><span>Prix total des ventes</span></div></div></div></div>
-            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card" :class="contractProfitCardClass"><div class="body"><div class="p-15 text-light"><h3>{{ contractProfitTotal !== null ? formatCurrency(contractProfitTotal) : '-' }}</h3><span>Benefice total</span></div></div></div></div>
+            <div v-if="canSeeContractFinancialTotals" class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-primary"><div class="body"><div class="p-15 text-light"><h3>{{ formatCurrency(contractSalesTotal) }}</h3><span>Prix total des ventes</span></div></div></div></div>
+            <div v-if="canSeeContractFinancialTotals" class="col-lg-3 col-md-6 col-sm-12"><div class="card" :class="contractProfitCardClass"><div class="body"><div class="p-15 text-light"><h3>{{ contractProfitTotal !== null ? formatCurrency(contractProfitTotal) : '-' }}</h3><span>Benefice total</span></div></div></div></div>
         </div>
 
         <div class="row clearfix">
@@ -79,9 +79,6 @@
                 </div>
                 <div class="row">
                     <div class="col-md-4 col-sm-6 mb-2">
-                        <input v-model="filterDetailCouleur" type="text" class="form-control form-control-sm" placeholder="Filtrer par code couleur..." />
-                    </div>
-                    <div class="col-md-3 col-sm-6 mb-2">
                         <select v-model="filterDetailCategorie" class="form-control form-control-sm">
                             <option value="">Toutes les categories</option>
                             <option value="mate">Mate</option>
@@ -89,14 +86,14 @@
                             <option value="brillant">Brillant</option>
                         </select>
                     </div>
-                    <div class="col-md-3 col-sm-6 mb-2">
+                    <div class="col-md-4 col-sm-6 mb-2">
                         <select v-model="filterDetailEpaisseur" class="form-control form-control-sm">
                             <option value="">Toutes les epaisseurs</option>
                             <option v-for="opt in epaisseurOptions" :key="opt.id" :value="opt.value">{{ opt.label }}</option>
                         </select>
                     </div>
-                    <div class="col-md-2 col-sm-6 mb-2 d-flex align-items-center">
-                        <small class="text-muted">{{ filteredContractDetails.length }} / {{ contractDetails.length }} ligne(s)</small>
+                    <div class="col-md-4 col-sm-6 mb-2 d-flex align-items-center">
+                        <small class="text-muted">{{ groupedContractDetails.length }} groupe(s)</small>
                     </div>
                 </div>
             </div>
@@ -104,45 +101,26 @@
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Code couleur</th><th>Categorie</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th v-if="isAdmin" class="text-center">Prix de revient</th><th class="text-center">Total vendu</th><th v-if="isAdmin" class="text-center">Bénéfice total</th><th>Actions</th>
+                            <th>Categorie</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th v-if="isAdmin" class="text-center">Prix de revient</th><th v-if="canSeeContractFinancialTotals" class="text-center">Total vendu</th><th v-if="isAdmin" class="text-center">Bénéfice total</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="!filteredContractDetails.length"><td :colspan="isAdmin ? 10 : 8" class="text-center py-4 text-muted">{{ contractDetails.length ? 'Aucun resultat pour ces filtres.' : 'Aucun detail pour ce contrat.' }}</td></tr>
-                        <tr v-for="detail in filteredContractDetails" :key="detail.id">
-                            
-                            <td>
-                                <div class="d-flex align-items-center" style="gap:8px;">
-                                    <div v-if="detail.image_url"  class="border rounded d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:#fff;overflow:hidden;">
-                                        <img :src="detail.image_url" alt="Apercu couleur" style="width:100%;height:100%;object-fit:cover;" />
-                                        
-                                    </div>
-                                    <span class="badge badge-info">{{ detail.code_couleur || '-' }}</span>
-                                </div>
-                            </td>
-                            <td><span class="badge" :class="categorieBadgeClass(detail.categorie)">{{ categorieLabel(detail.categorie) }}</span></td>
-                            <td class="text-center">{{ detail.epaisseur != null && detail.epaisseur !== '' ? parseInt(detail.epaisseur) : '-' }}</td>
-                            <td class="text-center">{{ detail.quantite_prevue || 0 }}</td>
-                            <td class="text-center">{{ detail.total_quantite_livree || 0 }}</td>
-                            <td class="text-center font-weight-bold">{{ detail.quantite_disponible || 0 }}</td>
+                        <tr v-if="!groupedContractDetails.length"><td :colspan="contractDetailColspan" class="text-center py-4 text-muted">{{ contractDetails.length ? 'Aucun resultat pour ces filtres.' : 'Aucun detail pour ce contrat.' }}</td></tr>
+                        <tr v-for="group in groupedContractDetails" :key="group.key">
+                            <td><span class="badge" :class="categorieBadgeClass(group.categorie)">{{ categorieLabel(group.categorie) }}</span></td>
+                            <td class="text-center">{{ group.epaisseur != null && group.epaisseur !== '' ? parseInt(group.epaisseur) : '-' }}</td>
+                            <td class="text-center">{{ group.quantite_prevue || 0 }}</td>
+                            <td class="text-center">{{ group.total_quantite_livree || 0 }}</td>
+                            <td class="text-center font-weight-bold">{{ group.quantite_disponible || 0 }}</td>
                             <td v-if="isAdmin" class="text-center">
-                                <span v-if="detail.prix_de_revient !== null && detail.prix_de_revient !== undefined" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }">
-                                    {{ formatCurrency(detail.prix_de_revient) }}
-                                </span>
+                                <span v-if="group.prix_de_revient !== null && group.prix_de_revient !== undefined">{{ formatCurrency(group.prix_de_revient) }}</span>
                                 <span v-else class="text-muted">-</span>
                             </td>
-                            <td class="text-center">{{ detail.total_prix_total ? formatCurrency(detail.total_prix_total) : '-' }}</td>
-                            <td v-if="isAdmin" class="text-center" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }" :style="{ 'color': detail.profit_total !== null ? (detail.profit_total >= 0 ? '#155724' : '#721c24') : '' }">
-                                <span :class="detail.profit_total !== null ? (detail.profit_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
-                                    {{ detail.profit_total !== null ? formatCurrency(detail.profit_total) : '-' }}
+                            <td v-if="canSeeContractFinancialTotals" class="text-center">{{ group.total_prix_total ? formatCurrency(group.total_prix_total) : '-' }}</td>
+                            <td v-if="isAdmin" class="text-center">
+                                <span :class="group.profit_total !== null ? (group.profit_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
+                                    {{ group.profit_total !== null ? formatCurrency(group.profit_total) : '-' }}
                                 </span>
-                            </td>
-                            <td>
-                                <div v-if="isAdmin || isComptable" class="d-flex flex-wrap" style="gap:6px;">
-                                    <button type="button" class="btn btn-warning btn-sm" @click="openDetailEditModal(detail)">Modifier</button>
-                                    <button v-if="isAdmin" type="button" class="btn btn-danger btn-sm" @click="deleteDetail(detail)">Supprimer</button>
-                                </div>
-                                <span v-else class="text-muted">-</span>
                             </td>
                         </tr>
                     </tbody>
@@ -495,7 +473,8 @@ const props = defineProps({
 });
 
 const isAdmin = computed(() => props.userRole === 'admin');
-const isComptable = computed(() => props.userRole === 'comptable');
+const canSeeContractFinancialTotals = computed(() => !['comptable', 'compta'].includes(props.userRole));
+const contractDetailColspan = computed(() => 5 + (isAdmin.value ? 2 : 0) + (canSeeContractFinancialTotals.value ? 1 : 0));
 
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
@@ -517,17 +496,15 @@ const submittingDetailEdit = ref(false);
 const detailEditFormError = ref('');
 const detailEditErrors = ref({});
 const selectedDetail = ref(null);
-const justUpdatedDetailId = ref(null);
 
 // Tabs
 const activeTab = ref('details');
 
 // Filters – details tab
-const filterDetailCouleur = ref('');
 const filterDetailCategorie = ref('');
 const filterDetailEpaisseur = ref('');
-const hasDetailFilters = computed(() => !!filterDetailCouleur.value || !!filterDetailCategorie.value || !!filterDetailEpaisseur.value);
-function resetDetailFilters() { filterDetailCouleur.value = ''; filterDetailCategorie.value = ''; filterDetailEpaisseur.value = ''; }
+const hasDetailFilters = computed(() => !!filterDetailCategorie.value || !!filterDetailEpaisseur.value);
+function resetDetailFilters() { filterDetailCategorie.value = ''; filterDetailEpaisseur.value = ''; }
 
 // Filters – tarifs tab
 const filterTarifCategorie = ref('');
@@ -602,15 +579,47 @@ const contractDetails = computed(() => (props.contrat.planches || [])
         return keyA.localeCompare(keyB);
     }));
 
-const filteredContractDetails = computed(() => {
+const groupedContractDetails = computed(() => {
     let rows = contractDetails.value;
-    if (filterDetailCouleur.value) {
-        const q = filterDetailCouleur.value.trim().toLowerCase();
-        rows = rows.filter((d) => (d.code_couleur || '').toLowerCase().includes(q));
-    }
     if (filterDetailCategorie.value) rows = rows.filter((d) => d.categorie === filterDetailCategorie.value);
     if (filterDetailEpaisseur.value) rows = rows.filter((d) => String(d.epaisseur) === String(filterDetailEpaisseur.value));
-    return rows;
+
+    const groups = new Map();
+    rows.forEach((d) => {
+        const key = `${d.categorie || ''}|${d.epaisseur || ''}`;
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                categorie: d.categorie,
+                epaisseur: d.epaisseur,
+                quantite_prevue: 0,
+                total_quantite_livree: 0,
+                quantite_disponible: 0,
+                prix_de_revient: d.prix_de_revient ?? null,
+                total_prix_total: 0,
+                profit_total: 0,
+                has_profit: false,
+            });
+        }
+        const g = groups.get(key);
+        g.quantite_prevue += Number(d.quantite_prevue || 0);
+        g.total_quantite_livree += Number(d.total_quantite_livree || 0);
+        g.quantite_disponible += Number(d.quantite_disponible || 0);
+        g.total_prix_total += Number(d.total_prix_total || 0);
+        if (d.profit_total !== null && d.profit_total !== undefined) {
+            g.profit_total += Number(d.profit_total || 0);
+            g.has_profit = true;
+        }
+    });
+
+    return [...groups.values()]
+        .map((g) => ({ ...g, profit_total: g.has_profit ? g.profit_total : null }))
+        .sort((a, b) => {
+            const catA = a.categorie || '';
+            const catB = b.categorie || '';
+            if (catA === catB) return Number(a.epaisseur || 0) - Number(b.epaisseur || 0);
+            return catA.localeCompare(catB);
+        });
 });
 
 const filteredPlancheTarifs = computed(() => {
