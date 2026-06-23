@@ -25,8 +25,8 @@
             
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-info"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_prevue || 0 }}</h3><span>Feuilles prevues</span></div></div></div></div>
             <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-success"><div class="body"><div class="p-15 text-light"><h3>{{ contrat.total_quantite_disponible || 0 }}</h3><span>Disponibles</span></div></div></div></div>
-            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-primary"><div class="body"><div class="p-15 text-light"><h3>{{ formatCurrency(contractSalesTotal) }}</h3><span>Prix total des ventes</span></div></div></div></div>
-            <div class="col-lg-3 col-md-6 col-sm-12"><div class="card" :class="contractProfitCardClass"><div class="body"><div class="p-15 text-light"><h3>{{ contractProfitTotal !== null ? formatCurrency(contractProfitTotal) : '-' }}</h3><span>Benefice total</span></div></div></div></div>
+            <div v-if="canSeeContractFinancialTotals" class="col-lg-3 col-md-6 col-sm-12"><div class="card bg-primary"><div class="body"><div class="p-15 text-light"><h3>{{ formatCurrency(contractSalesTotal) }}</h3><span>Prix total des ventes</span></div></div></div></div>
+            <div v-if="canSeeContractFinancialTotals" class="col-lg-3 col-md-6 col-sm-12"><div class="card" :class="contractProfitCardClass"><div class="body"><div class="p-15 text-light"><h3>{{ contractProfitTotal !== null ? formatCurrency(contractProfitTotal) : '-' }}</h3><span>Benefice total</span></div></div></div></div>
         </div>
 
         <div class="row clearfix">
@@ -111,11 +111,11 @@
                 <table class="table table-striped mb-0">
                     <thead>
                         <tr>
-                            <th>Code couleur</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th v-if="isAdmin" class="text-center">Prix de revient</th><th class="text-center">Total vendu</th><th v-if="isAdmin" class="text-center">Bénéfice total</th><th>Actions</th>
+                            <th>Code couleur</th><th class="text-center">Epaisseur</th><th class="text-center">Prevues</th><th class="text-center">Livrees</th><th class="text-center">Disponibles</th><th v-if="isAdmin" class="text-center">Prix de revient</th><th v-if="canSeeContractFinancialTotals" class="text-center">Total vendu</th><th v-if="isAdmin" class="text-center">Bénéfice total</th><th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="!filteredContractDetails.length"><td :colspan="isAdmin ? 10 : 8" class="text-center py-4 text-muted">{{ contractDetails.length ? 'Aucun resultat pour ces filtres.' : 'Aucun detail pour ce contrat.' }}</td></tr>
+                        <tr v-if="!filteredContractDetails.length"><td :colspan="contractDetailColspan" class="text-center py-4 text-muted">{{ contractDetails.length ? 'Aucun resultat pour ces filtres.' : 'Aucun detail pour ce contrat.' }}</td></tr>
                         <tr v-for="detail in filteredContractDetails" :key="detail.id" :class="{ 'table-danger': detail.quantite_disponible === 0 }">
                             
                             <td>
@@ -137,7 +137,7 @@
                                 </span>
                                 <span v-else class="text-muted">-</span>
                             </td>
-                            <td class="text-center">{{ detail.total_prix_total ? formatCurrency(detail.total_prix_total) : '-' }}</td>
+                            <td v-if="canSeeContractFinancialTotals" class="text-center">{{ detail.total_prix_total ? formatCurrency(detail.total_prix_total) : '-' }}</td>
                             <td v-if="isAdmin" class="text-center" :class="{ 'highlight-updated': justUpdatedDetailId === detail.id }" :style="{ 'color': detail.profit_total !== null ? (detail.profit_total >= 0 ? '#155724' : '#721c24') : '' }">
                                 <span :class="detail.profit_total !== null ? (detail.profit_total >= 0 ? 'text-success font-weight-bold' : 'text-danger font-weight-bold') : 'text-muted'">
                                     {{ detail.profit_total !== null ? formatCurrency(detail.profit_total) : '-' }}
@@ -461,8 +461,11 @@ const props = defineProps({
     planche_tarifs: { type: Array, default: () => [] },
 });
 
-const isAdmin = computed(() => props.userRole === 'admin');
-const isComptable = computed(() => props.userRole === 'comptable');
+const normalizedUserRole = computed(() => String(props.userRole || '').trim().toLowerCase());
+const isAdmin = computed(() => normalizedUserRole.value === 'admin');
+const isComptable = computed(() => ['comptable', 'compta'].includes(normalizedUserRole.value));
+const canSeeContractFinancialTotals = computed(() => isAdmin.value);
+const contractDetailColspan = computed(() => 6 + (isAdmin.value ? 3 : 0));
 
 const appName = import.meta.env.VITE_APP_NAME;
 const breadcrumbs = [
