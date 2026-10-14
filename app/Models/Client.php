@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use App\Traits\HasSyncUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Support\Str;
 
 class Client extends Model
 {
-    use HasFactory, HasSyncUuid, SoftDeletes;
+    use HasFactory, HasSyncUuid, SoftDeletes, Auditable;
 
     protected $fillable = ['name', 'slug', 'address', 'phone', 'email'];
 

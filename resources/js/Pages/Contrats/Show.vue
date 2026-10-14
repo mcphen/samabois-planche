@@ -5,16 +5,16 @@
         <BreadcrumbsAndActions :title="`Contrat ${contrat.numero}`" :breadcrumbs="breadcrumbs">
             <template #action>
                 <div class="d-flex flex-wrap" style="gap: 8px;">
-                    <button v-if="isAdmin" type="button" class="btn btn-outline-secondary" @click="openEditModal">
+                    <button v-if="canManageStock" type="button" class="btn btn-outline-secondary" @click="openEditModal">
                         <i class="fa fa-pencil"></i> Modifier
                     </button>
                     <Link class="btn btn-outline-info" href="/admin/planche-bons-livraison/create">
                         <i class="fa fa-truck"></i> Nouvelle facture
                     </Link>
-                    <button v-if="isAdmin" type="button" class="btn btn-outline-success" @click="openTarifModal">
+                    <button v-if="canManageCostPrices" type="button" class="btn btn-outline-success" @click="openTarifModal">
                         <i class="fa fa-tag"></i> Ajouter prix de revient
                     </button>
-                    <button v-if="isAdmin" type="button" class="btn btn-primary" @click="openCreateModal">
+                    <button v-if="canManageStock" type="button" class="btn btn-primary" @click="openCreateModal">
                         <i class="fa fa-plus"></i> Ajouter des planches
                     </button>
                 </div>
@@ -61,7 +61,7 @@
                     <i class="fa fa-list mr-1"></i> Detail du contrat
                 </button>
             </li>
-            <li class="nav-item">
+            <li v-if="canSeeCostPrices" class="nav-item">
                 <button class="nav-link" :class="{ active: activeTab === 'tarifs' }" @click="activeTab = 'tarifs'">
                     <i class="fa fa-tag mr-1"></i> Prix de revient
                 </button>
@@ -84,6 +84,7 @@
                             <option value="mate">Mate</option>
                             <option value="semi_brillant">Semi-brillant</option>
                             <option value="brillant">Brillant</option>
+                            <option value="__none__">Sans categorie</option>
                         </select>
                     </div>
                     <div class="col-md-4 col-sm-6 mb-2">
@@ -129,7 +130,7 @@
         </div>
 
         <!-- Tab: Prix de revient -->
-        <div v-show="activeTab === 'tarifs'" class="card" style="border-top-left-radius:0;">
+        <div v-if="canSeeCostPrices" v-show="activeTab === 'tarifs'" class="card" style="border-top-left-radius:0;">
             <div class="header">
                 <div class="d-flex align-items-center justify-content-between flex-wrap mb-2" style="gap:8px;">
                     <h2 class="mb-0">Prix de revient du contrat</h2>
@@ -137,7 +138,7 @@
                         <button v-if="hasTarifFilters" type="button" class="btn btn-sm btn-outline-secondary" @click="resetTarifFilters">
                             <i class="fa fa-times mr-1"></i>Reinitialiser
                         </button>
-                        <button v-if="isAdmin" type="button" class="btn btn-primary btn-sm" @click="openTarifModal">
+                        <button v-if="canManageCostPrices" type="button" class="btn btn-primary btn-sm" @click="openTarifModal">
                             <i class="fa fa-plus mr-1"></i> Ajouter prix de revient
                         </button>
                     </div>
@@ -149,6 +150,7 @@
                             <option value="mate">Mate</option>
                             <option value="semi_brillant">Semi-brillant</option>
                             <option value="brillant">Brillant</option>
+                            <option value="__none__">Sans categorie</option>
                         </select>
                     </div>
                     <div class="col-md-4 col-sm-6 mb-2">
@@ -381,7 +383,7 @@
     </div>
 
     <!-- Modal: Ajouter prix de revient (batch) -->
-    <div v-if="showTarifModal" class="modal d-block" tabindex="-1" role="dialog">
+    <div v-if="canManageCostPrices && showTarifModal" class="modal d-block" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -410,6 +412,7 @@
                                             <option value="mate">Mate</option>
                                             <option value="semi_brillant">Semi-brillant</option>
                                             <option value="brillant">Brillant</option>
+                                            <option :value="null">Sans categorie</option>
                                         </select>
                                         <small v-if="tarifErrors[`tarifs.${index}.categorie`]" class="text-danger d-block mt-1">{{ tarifErrors[`tarifs.${index}.categorie`][0] }}</small>
                                     </td>
@@ -472,8 +475,13 @@ const props = defineProps({
     planche_tarifs: { type: Array, default: () => [] },
 });
 
-const isAdmin = computed(() => props.userRole === 'admin');
-const canSeeContractFinancialTotals = computed(() => !['comptable', 'compta'].includes(props.userRole));
+const normalizedUserRole = computed(() => String(props.userRole || '').trim().toLowerCase());
+const isAdmin = computed(() => normalizedUserRole.value === 'admin');
+const isComptable = computed(() => ['comptable', 'compta'].includes(normalizedUserRole.value));
+const canSeeCostPrices = computed(() => !isComptable.value);
+const canManageCostPrices = computed(() => isAdmin.value && canSeeCostPrices.value);
+const canSeeContractFinancialTotals = computed(() => !isComptable.value);
+const canManageStock = computed(() => isAdmin.value || isComptable.value);
 const contractDetailColspan = computed(() => 5 + (isAdmin.value ? 2 : 0) + (canSeeContractFinancialTotals.value ? 1 : 0));
 
 const appName = import.meta.env.VITE_APP_NAME;
@@ -525,7 +533,14 @@ function createTarifRow() {
 }
 function addTarifRow(index) { tarifForm.value.rows.splice(index + 1, 0, createTarifRow()); }
 function removeTarifRow(index) { if (tarifForm.value.rows.length > 1) tarifForm.value.rows.splice(index, 1); }
-function openTarifModal() { tarifForm.value = { rows: [createTarifRow()] }; tarifErrors.value = {}; tarifFormError.value = ''; showTarifModal.value = true; }
+function openTarifModal() {
+    if (!canManageCostPrices.value) return;
+
+    tarifForm.value = { rows: [createTarifRow()] };
+    tarifErrors.value = {};
+    tarifFormError.value = '';
+    showTarifModal.value = true;
+}
 function closeTarifModal() { showTarifModal.value = false; }
 function submitTarifForm() {
     submittingTarif.value = true;
@@ -581,7 +596,8 @@ const contractDetails = computed(() => (props.contrat.planches || [])
 
 const groupedContractDetails = computed(() => {
     let rows = contractDetails.value;
-    if (filterDetailCategorie.value) rows = rows.filter((d) => d.categorie === filterDetailCategorie.value);
+    if (filterDetailCategorie.value === '__none__') rows = rows.filter((d) => !d.categorie);
+    else if (filterDetailCategorie.value) rows = rows.filter((d) => d.categorie === filterDetailCategorie.value);
     if (filterDetailEpaisseur.value) rows = rows.filter((d) => String(d.epaisseur) === String(filterDetailEpaisseur.value));
 
     const groups = new Map();
@@ -624,7 +640,8 @@ const groupedContractDetails = computed(() => {
 
 const filteredPlancheTarifs = computed(() => {
     let rows = plancheTarifs.value;
-    if (filterTarifCategorie.value) rows = rows.filter((t) => t.categorie === filterTarifCategorie.value);
+    if (filterTarifCategorie.value === '__none__') rows = rows.filter((t) => !t.categorie);
+    else if (filterTarifCategorie.value) rows = rows.filter((t) => t.categorie === filterTarifCategorie.value);
     if (filterTarifEpaisseur.value) rows = rows.filter((t) => String(normalizeEpaisseurValue(t.epaisseur)) === String(filterTarifEpaisseur.value));
     return rows;
 });
@@ -910,7 +927,7 @@ function deleteDetail(detail) {
             });
     });
 }
-function categorieLabel(cat) { return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || '-'; }
+function categorieLabel(cat) { return { mate: 'Mate', semi_brillant: 'Semi-brillant', brillant: 'Brillant' }[cat] || cat || 'Sans categorie'; }
 function categorieBadgeClass(cat) { return { mate: 'badge-secondary', semi_brillant: 'badge-warning', brillant: 'badge-success' }[cat] || 'badge-light'; }
 function formatDecimal(value) { return value === null || value === undefined || value === '' ? '-' : Number(value).toFixed(2); }
 function formatCurrency(value) { const num = Math.round(Number(value || 0)); return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' CFA'; }

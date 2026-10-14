@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use App\Traits\HasSyncUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Support\Str;
 
 class Epaisseur extends Model
 {
-    use HasFactory, HasSyncUuid;
+    use HasFactory, HasSyncUuid, Auditable;
 
     protected $fillable = [
         'intitule',

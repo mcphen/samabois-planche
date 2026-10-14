@@ -184,6 +184,13 @@ const allMenuItems = [
         roles: ['admin'],
         subMenu: [],
     },
+    {
+        name: 'Journal des modifications',
+        icon: 'fa fa-history',
+        url: '/admin/journal',
+        roles: ['admin'],
+        subMenu: [],
+    },
 ];
 
 const menuItems = computed(() => {

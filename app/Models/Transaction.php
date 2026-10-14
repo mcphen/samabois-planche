@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use App\Traits\HasSyncUuid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Transaction extends Model
 {
-    use HasFactory, SoftDeletes, HasSyncUuid;
+    use HasFactory, SoftDeletes, HasSyncUuid, Auditable;
 
     protected $fillable = [
         'client_id',
@@ -43,5 +44,13 @@ class Transaction extends Model
     public function caisseTransactions()
     {
         return $this->hasMany(CaisseTransaction::class);
+    }
+
+    public function auditLabel(): ?string
+    {
+        $client = Client::withTrashed()->whereKey($this->client_id)->value('name');
+        $type   = $this->type === 'payment' ? 'Paiement' : 'Facture';
+
+        return trim($type . ($this->isSolde ? ' (ajustement solde)' : '') . ($client ? ' · ' . $client : ''));
     }
 }

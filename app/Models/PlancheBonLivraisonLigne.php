@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use App\Models\Contrat;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class PlancheBonLivraisonLigne extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $table = 'planche_bon_livraison_lignes';
 
@@ -59,5 +60,12 @@ class PlancheBonLivraisonLigne extends Model
     public function contrat()
     {
         return $this->belongsTo(Contrat::class);
+    }
+
+    public function auditLabel(): ?string
+    {
+        $numero = PlancheBonLivraison::query()->whereKey($this->planche_bon_livraison_id)->value('numero_bl');
+
+        return $numero ? 'Facture ' . $numero : null;
     }
 }

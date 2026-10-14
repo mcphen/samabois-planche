@@ -483,13 +483,14 @@ class PlancheController extends Controller
                 $quantiteLivree    = $detail->bonLivraisonLignes()->sum('quantite_livree');
                 $totalPrixTotal    = $detail->bonLivraisonLignes()->sum('prix_total');
 
+                // Le comptable ne voit pas les montants
                 return [
                     'redirect_to' => $redirectTo,
                     'planche_id'  => $targetPlanche->id,
-                    'detail' => [
+                    'detail' => auth()->user()?->role === 'admin' ? [
                         'profit_total' => $prixRevient !== null ? ($totalPrixTotal - ($prixRevient * $quantiteLivree)) : null,
                         'cout_total'   => $prixRevient !== null ? ($prixRevient * $quantiteLivree) : null,
-                    ],
+                    ] : [],
                 ];
             });
 

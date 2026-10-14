@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ContratController;
@@ -47,6 +48,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/users', [UserController::class, 'store'])->middleware('role:admin')->name('admin.users.store');
         Route::put('/users/{user}', [UserController::class, 'update'])->middleware('role:admin')->name('admin.users.update');
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->middleware('role:admin')->name('admin.users.destroy');
+        Route::get('/journal', [AuditLogController::class, 'index'])->middleware('role:admin')->name('admin.audit-logs.index');
+        Route::get('/journal/list', [AuditLogController::class, 'list'])->middleware('role:admin')->name('admin.audit-logs.list');
 
         Route::middleware('role:admin')->group(function () {
 
@@ -128,9 +131,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/validate', [ContratController::class, 'checkNumero'])->name('contrats.validate');
             Route::get('/listes', [ContratController::class, 'getContrats'])->name('contrats.list');
             Route::get('/{contrat}', [ContratController::class, 'show'])->name('contrats.show');
-            Route::get('/{contrat}/benefit-history', [ContratController::class, 'getBenefitHistory'])->name('contrats.benefit-history');
+            Route::get('/{contrat}/benefit-history', [ContratController::class, 'getBenefitHistory'])->middleware('role:admin')->name('contrats.benefit-history');
+            Route::put('/{contrat}', [ContratController::class, 'update'])->middleware('role:admin,comptable')->name('contrats.update');
             Route::middleware('role:admin')->group(function () {
-                Route::put('/{contrat}', [ContratController::class, 'update'])->name('contrats.update');
                 Route::post('/{contrat}/planche-tarifs/batch', [ContratController::class, 'storePlancheTarifsBatch'])->name('contrats.planche-tarifs.batch');
             });
         });
@@ -146,7 +149,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/{planche}', [PlancheController::class, 'show'])->name('planches.show');
             Route::post('/store', [PlancheController::class, 'store'])->name('planches.store');
             Route::post('/{planche}/lignes', [PlancheController::class, 'storeLine'])->name('planches.lines.store');
-            Route::middleware('role:admin')->group(function () {
+            Route::middleware('role:admin,comptable')->group(function () {
                 Route::put('/{planche}/lignes/{detail}', [PlancheController::class, 'updateLine'])->name('planches.lines.update');
                 Route::delete('/{planche}/lignes/{detail}', [PlancheController::class, 'destroyLine'])->name('planches.lines.destroy');
                 Route::delete('/{planche}/destroy', [PlancheController::class, 'destroy'])->name('planches.destroy');
