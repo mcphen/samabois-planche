@@ -5,7 +5,7 @@
         <BreadcrumbsAndActions :title="`Contrat ${contrat.numero}`" :breadcrumbs="breadcrumbs">
             <template #action>
                 <div class="d-flex flex-wrap" style="gap: 8px;">
-                    <button v-if="isAdmin" type="button" class="btn btn-outline-secondary" @click="openEditModal">
+                    <button v-if="canManageStock" type="button" class="btn btn-outline-secondary" @click="openEditModal">
                         <i class="fa fa-pencil"></i> Modifier
                     </button>
                     <Link class="btn btn-outline-info" href="/admin/planche-bons-livraison/create">
@@ -14,7 +14,7 @@
                     <button v-if="isAdmin" type="button" class="btn btn-outline-success" @click="openTarifModal">
                         <i class="fa fa-tag"></i> Ajouter prix de revient
                     </button>
-                    <button v-if="isAdmin" type="button" class="btn btn-primary" @click="openCreateModal">
+                    <button v-if="canManageStock" type="button" class="btn btn-primary" @click="openCreateModal">
                         <i class="fa fa-plus"></i> Ajouter des planches
                     </button>
                 </div>
@@ -66,6 +66,7 @@
                 <span class="ct-tab__count">{{ contractDetails.length }}</span>
             </button>
             <button
+                v-if="isAdmin"
                 class="ct-tab"
                 :class="{ 'ct-tab--active': activeTab === 'tarifs' }"
                 @click="activeTab = 'tarifs'"
@@ -146,7 +147,7 @@
                             <td>
                                 <div v-if="isAdmin || isComptable" class="d-flex flex-wrap" style="gap:6px;">
                                     <button type="button" class="btn btn-warning btn-sm" @click="openDetailEditModal(detail)">Modifier</button>
-                                    <button v-if="isAdmin" type="button" class="btn btn-danger btn-sm" @click="deleteDetail(detail)">Supprimer</button>
+                                    <button type="button" class="btn btn-danger btn-sm" @click="deleteDetail(detail)">Supprimer</button>
                                 </div>
                                 <span v-else class="text-muted">-</span>
                             </td>
@@ -157,7 +158,7 @@
         </div>
 
         <!-- Tab: Prix de revient -->
-        <div v-show="activeTab === 'tarifs'" class="card ct-tab-panel">
+        <div v-if="isAdmin" v-show="activeTab === 'tarifs'" class="card ct-tab-panel">
             <div class="header">
                 <div class="d-flex align-items-center justify-content-between flex-wrap mb-2" style="gap:8px;">
                     <h2 class="mb-0">Prix de revient du contrat</h2>
@@ -465,6 +466,7 @@ const normalizedUserRole = computed(() => String(props.userRole || '').trim().to
 const isAdmin = computed(() => normalizedUserRole.value === 'admin');
 const isComptable = computed(() => ['comptable', 'compta'].includes(normalizedUserRole.value));
 const canSeeContractFinancialTotals = computed(() => isAdmin.value);
+const canManageStock = computed(() => isAdmin.value || isComptable.value);
 const contractDetailColspan = computed(() => 6 + (isAdmin.value ? 3 : 0));
 
 const appName = import.meta.env.VITE_APP_NAME;

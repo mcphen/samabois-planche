@@ -42,10 +42,12 @@ class ContratController extends Controller
                 ->orderBy('name')
                 ->get(),
             'userRole' => auth()->user()->role,
-            'planche_tarifs' => PlancheTarif::query()
-                ->where('contrat_id', $contrat->id)
-                ->orderBy('epaisseur')
-                ->get(['id', 'contrat_id', 'epaisseur', 'prix']),
+            'planche_tarifs' => $this->canSeeAmounts()
+                ? PlancheTarif::query()
+                    ->where('contrat_id', $contrat->id)
+                    ->orderBy('epaisseur')
+                    ->get(['id', 'contrat_id', 'epaisseur', 'prix'])
+                : [],
         ]);
     }
 
@@ -255,12 +257,25 @@ class ContratController extends Controller
 
         $detail->setAttribute('total_quantite_livree', $quantiteLivree);
         $detail->setAttribute('quantite_disponible', max((int) $detail->quantite_prevue - $quantiteLivree, 0));
+
+        // Le comptable ne voit pas les montants
+        if (! $this->canSeeAmounts()) {
+            $detail->makeHidden('total_prix_total');
+
+            return $detail;
+        }
+
         $detail->setAttribute('total_prix_total', $totalPrixTotal);
         $detail->setAttribute('prix_de_revient', $prixRevient);
         $detail->setAttribute('cout_total', $prixRevient !== null ? $prixRevient * $quantiteLivree : null);
         $detail->setAttribute('profit_total', $prixRevient !== null ? $totalPrixTotal - ($prixRevient * $quantiteLivree) : null);
 
         return $detail;
+    }
+
+    private function canSeeAmounts(): bool
+    {
+        return auth()->user()?->role === 'admin';
     }
 
     private function extractCouleurCode($couleur): ?string

@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class PlancheDetail extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $fillable = [
         'planche_id',
@@ -39,5 +40,17 @@ class PlancheDetail extends Model
     public function benefitHistories()
     {
         return $this->hasMany(PlancheBenefitHistory::class);
+    }
+
+    public function auditLabel(): ?string
+    {
+        $contrat = Planche::query()->with('contrat:id,numero')->find($this->planche_id)?->contrat?->numero;
+
+        return collect([
+            PlancheCouleur::query()->whereKey($this->planche_couleur_id)->value('code'),
+            $this->categorie,
+            $this->epaisseur !== null ? 'ép. ' . (float) $this->epaisseur : null,
+            $contrat ? 'contrat ' . $contrat : null,
+        ])->filter()->implode(' · ') ?: null;
     }
 }
