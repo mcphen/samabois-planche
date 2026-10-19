@@ -45,9 +45,11 @@
                                 {{ formatPrice(client.remaining_due) }}
                             </td>
                             <td>
-                                <!--button @click="openCancelClient(client.uuid)" class="btn btn-warning m-1 btn-sm">
+                                <button v-if="!showSettledClients && client.remaining_due != 0"
+                                        @click="openCancelClient(client)"
+                                        class="btn btn-warning m-1 btn-sm">
                                     <i class="fa fa-money"></i> Solder le compte
-                                </button-->
+                                </button>
                                 <button @click="showClient(client.id)" class="btn btn-primary m-1 btn-sm">
                                     <i class="fa fa-eye"></i> Consulter le compte
                                 </button>
@@ -78,14 +80,12 @@ const breadcrumbs = [
     { label: 'Liste des comptes clients' }
 ];
 const clients = ref([]);
-const showCancelSolde = ref(false);
-const selectedClient = ref("");
 const showSettledClients = ref(false);
 
-function openCancelClient(uuid) {
+function openCancelClient(client) {
     Swal.fire({
         title: "Êtes-vous sûr ?",
-        text: "Le compte sera soldé.",
+        text: `Le compte de ${client.name} sera soldé (${formatPrice(client.remaining_due)} FCFA).`,
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#d33",
@@ -94,13 +94,14 @@ function openCancelClient(uuid) {
         cancelButtonText: "Annuler"
     }).then((result) => {
         if (result.isConfirmed) {
-            axios.post(`/admin/clients/${uuid}/cancel-solde`)
+            axios.post(`/admin/clients/${client.id}/cancel-solde`)
                 .then(response => {
-                    Swal.fire("Compte soldé !", response.data.message, "success")
-                        .then(() => location.reload());
+                    Swal.fire("Compte soldé !", response.data.message, "success");
+                    fetchClientAccounts();
                 })
                 .catch(error => {
-                    Swal.fire("Erreur", error.response.data.error || "Impossible de solder le compte.", "error");
+                    const data = error.response?.data;
+                    Swal.fire("Erreur", data?.error || data?.message || "Impossible de solder le compte.", "error");
                 });
         }
     });

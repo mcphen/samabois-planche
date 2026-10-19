@@ -13,6 +13,7 @@ use App\Services\ClientBalanceService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
@@ -121,48 +122,54 @@ class PaymentController extends Controller
             ->where('type', 'payment')
             ->sum('amount');
 
-        $amountToCancel = $totalDue - $totalPaid;
+        $amountToCancel = round($totalDue - $totalPaid, 2);
 
         if ($amountToCancel == 0) {
             return response()->json(['message' => 'Le solde est déjà à zéro.'], 400);
         }
 
-        // 1. Sauvegarder dans l'historique
-        HistoriqueClientSolde::create([
-            'client_id' => $client->id,
-            'amount'    => $amountToCancel,
-            'date'      => Carbon::now()->toDateString(),
-        ]);
-
-        if ($amountToCancel > 0) {
-            // Solde positif : le client doit de l'argent → on crée un paiement d'ajustement
-            Transaction::create([
-                'client_id'        => $client->id,
-                'type'             => 'payment',
-                'isSolde'          => true,
-                'amount'           => $amountToCancel,
-                'transaction_date' => Carbon::now()->toDateString(),
+        DB::transaction(function () use ($client, $amountToCancel) {
+            // 1. Sauvegarder dans l'historique
+            HistoriqueClientSolde::create([
+                'client_id' => $client->id,
+                'amount'    => $amountToCancel,
+                'date'      => Carbon::now()->toDateString(),
             ]);
 
-            // Marquer tous les BL non soldés comme validés
-            PlancheBonLivraison::where('client_id', $client->id)
-                ->where('status', '!=', 'validated')
-                ->where('statut', '!=', 'annule')
-                ->each(function (PlancheBonLivraison $bl) {
-                    $bl->montant_solde = $bl->montant;
-                    $bl->status        = 'validated';
-                    $bl->save();
-                });
-        } else {
-            // Solde négatif : le client a un crédit → on crée une facture d'ajustement pour absorber le crédit
-            Transaction::create([
-                'client_id'        => $client->id,
-                'type'             => 'invoice',
-                'isSolde'          => true,
-                'amount'           => abs($amountToCancel),
-                'transaction_date' => Carbon::now()->toDateString(),
-            ]);
-        }
+            if ($amountToCancel > 0) {
+                // Solde positif : le client doit de l'argent → on crée un paiement d'ajustement
+                Transaction::create([
+                    'client_id'        => $client->id,
+                    'type'             => 'payment',
+                    'isSolde'          => true,
+                    'amount'           => $amountToCancel,
+                    'transaction_date' => Carbon::now()->toDateString(),
+                ]);
+
+                // Marquer tous les BL non soldés comme validés (les NULL sont inclus)
+                PlancheBonLivraison::where('client_id', $client->id)
+                    ->where(function ($q) {
+                        $q->whereNull('status')->orWhereNotIn('status', ['validated', 'canceled']);
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('statut')->orWhere('statut', '!=', 'annule');
+                    })
+                    ->each(function (PlancheBonLivraison $bl) {
+                        $bl->montant_solde = $bl->montant;
+                        $bl->status        = 'validated';
+                        $bl->save();
+                    });
+            } else {
+                // Solde négatif : le client a un crédit → on crée une facture d'ajustement pour absorber le crédit
+                Transaction::create([
+                    'client_id'        => $client->id,
+                    'type'             => 'invoice',
+                    'isSolde'          => true,
+                    'amount'           => abs($amountToCancel),
+                    'transaction_date' => Carbon::now()->toDateString(),
+                ]);
+            }
+        });
 
         return response()->json(['message' => 'Le compte est maintenant soldé.']);
     }

@@ -398,7 +398,7 @@ function openCancelClient(id) {
                         .then(() => location.reload());
                 })
                 .catch(error => {
-                    Swal.fire("Erreur", error.response?.data?.error || "Impossible de solder le compte.", "error");
+                    Swal.fire("Erreur", error.response?.data?.error || error.response?.data?.message || "Impossible de solder le compte.", "error");
                 });
         }
     });
